@@ -1,1 +1,86 @@
-
+[
+  {
+    "file": "pathetique_1.mid",
+    "title": "Sonate Pathétique — 1er mouvement",
+    "composer": "Beethoven",
+    "difficulty": 3,
+    "icon": "🔥"
+  },
+  {
+    "file": "Piano Sonata n08 op13 3mov Pathetique.mid",
+    "title": "Sonate Pathétique — 3e mouvement",
+    "composer": "Beethoven",
+    "difficulty": 3,
+    "icon": "🔥"
+  },
+  {
+    "file": "mond_3.mid",
+    "title": "Sonate au Clair de Lune — 3e mouvement",
+    "composer": "Beethoven",
+    "difficulty": 3,
+    "icon": "🌑"
+  },
+  {
+    "file": "mond_1.mid",
+    "title": "Sonate au Clair de Lune — 1er mouvement",
+    "composer": "Beethoven",
+    "difficulty": 2,
+    "icon": "🌙"
+  },
+  {
+    "file": "bach_850.mid",
+    "title": "Prélude et Fugue en Ré Majeur (BWV 850)",
+    "composer": "Bach",
+    "difficulty": 2,
+    "icon": "⛪"
+  },
+  {
+    "file": "bach_846.mid",
+    "title": "Prélude en Do Majeur (BWV 846)",
+    "composer": "Bach",
+    "difficulty": 1,
+    "icon": "⛪"
+  },
+  {
+    "file": "chpn_op25_e1.mid",
+    "title": "Étude Op.25 No.1 — Harpe éolienne",
+    "composer": "Chopin",
+    "difficulty": 3,
+    "icon": "🌊"
+  },
+  {
+    "file": "chpn-p16.mid",
+    "title": "Prélude Op.28 No.16",
+    "composer": "Chopin",
+    "difficulty": 3,
+    "icon": "⚡"
+  },
+  {
+    "file": "chpn_op10_e12.mid",
+    "title": "Étude Op.10 No.12 — Révolutionnaire",
+    "composer": "Chopin",
+    "difficulty": 3,
+    "icon": "✊"
+  },
+  {
+    "file": "chpn_op25_e11.mid",
+    "title": "Étude Op.25 No.11 — Vent d'hiver",
+    "composer": "Chopin",
+    "difficulty": 3,
+    "icon": "❄️"
+  },
+  {
+    "file": "brahms_opus1_2_format0.mid",
+    "title": "Sonate No.1 Op.1 — 2e mouvement",
+    "composer": "Brahms",
+    "difficulty": 2,
+    "icon": "🍂"
+  },
+  {
+    "file": "brahms_opus1_1_format0.mid",
+    "title": "Sonate No.1 Op.1 — 1er mouvement",
+    "composer": "Brahms",
+    "difficulty": 3,
+    "icon": "🍂"
+  }
+]
