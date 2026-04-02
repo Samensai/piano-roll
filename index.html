@@ -953,13 +953,44 @@ async function doRestart(){
   document.getElementById('play-icon').textContent = '⏸';
 }
 async function testAudio(){
-  await ensureSamplesLoaded();
-  await ensureAudio();
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
 
-  console.log('TEST audioCtx.state =', audioCtx?.state);
-  console.log('TEST buffers =', Object.keys(sampleBuffers));
+    await audioCtx.resume();
 
-  playSample(60, audioCtx.currentTime + 0.05, 0.5);
+    if (!masterGain) {
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.7;
+      masterGain.connect(audioCtx.destination);
+    }
+
+    alert(
+      'audioCtx.state = ' + audioCtx.state +
+      '\nsamplerReady = ' + samplerReady +
+      '\nbuffers = ' + Object.keys(sampleBuffers).length
+    );
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+
+    gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.5);
+  } catch (e) {
+    alert('testAudio erreur : ' + e.message);
+    console.error(e);
+  }
 }
 function seekTo(e){
   if(tutoMode)return;clearScheduled();
