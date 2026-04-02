@@ -253,7 +253,6 @@ input[type=file]{display:none}
   </div>
   <div id="ctrl-bar">
     <div id="play-btn" onclick="togglePlay()"><span id="play-icon">▶</span></div>
-    <button id="test-audio-btn" type="button" onclick="testAudio()" style="font-size:12px;color:#4ade80;padding:6px 8px;background:none;border:1px solid #2a5;border-radius:8px">Test</button>
     <div id="restart-btn" onclick="doRestart()">⏮</div>
     <div id="seek-bar" onclick="seekTo(event)"><div id="seek-fill"></div></div>
     <span id="time-lbl">0:00 / 0:00</span>
@@ -326,15 +325,32 @@ function parseMidi(buf){
   }
   const tm=[{tick:0,tempo:500000,sec:0}];
   (tracks[0]||[]).filter(e=>e.type==='tempo').forEach(e=>{
-    const l=tm[tm.length-1];tm.push({tick:e.tick,tempo:e.val,sec:l.sec+(e.tick-l.tick)/tpqn*(l.tempo/1e6)});
+    const l=tm[tm.length-1];
+    tm.push({tick:e.tick,tempo:e.val,sec:l.sec+(e.tick-l.tick)/tpqn*(l.tempo/1e6)});
   });
-  const t2s=tick=>{let i=tm.length-1;while(i>0&&tm[i].tick>tick)i--;const t=tm[i];return t.sec+(tick-t.tick)/tpqn*(t.tempo/1e6)};
+  const t2s=tick=>{
+    let i=tm.length-1;
+    while(i>0&&tm[i].tick>tick)i--;
+    const t=tm[i];
+    return t.sec+(tick-t.tick)/tpqn*(t.tempo/1e6);
+  };
   const notes=[];
   tracks.forEach((evts,ti)=>{
-    const op={};evts.forEach(e=>{
+    const op={};
+    evts.forEach(e=>{
       if(e.type==='on')op[e.note+'_'+e.ch]={tick:e.tick,track:ti};
-      else if(e.type==='off'){const k=e.note+'_'+e.ch,o=op[k];
-        if(o){notes.push({midi:e.note,start:t2s(o.tick),dur:Math.max(t2s(e.tick)-t2s(o.tick),.05),track:ti});delete op[k]}}
+      else if(e.type==='off'){
+        const k=e.note+'_'+e.ch,o=op[k];
+        if(o){
+          notes.push({
+            midi:e.note,
+            start:t2s(o.tick),
+            dur:Math.max(t2s(e.tick)-t2s(o.tick),.05),
+            track:ti
+          });
+          delete op[k];
+        }
+      }
     });
   });
   notes.sort((a,b)=>a.start-b.start);
@@ -349,178 +365,161 @@ function parseMidi(buf){
 let audioCtx=null,masterGain=null;
 const sampleBuffers={},scheduledKeys={};
 let samplerReady=false;
-const SAMPLE_MAP={21:'A0',24:'C1',33:'A1',36:'C2',45:'A2',48:'C3',57:'A3',60:'C4',69:'A4',72:'C5',81:'A5',84:'C6',93:'A6',96:'C7',105:'A7',108:'C8'};
-const SAMP_URL='https://gleitz.github.io/midi-js-soundfonts/MusyngKite/acoustic_grand_piano-mp3/';
-
 let audioUnlocked=false;
+let audioLoadingPromise=null;
 
-let audioLoadingPromise = null;
+const SAMPLE_MAP={
+  21:'A0',24:'C1',33:'A1',36:'C2',45:'A2',48:'C3',57:'A3',60:'C4',
+  69:'A4',72:'C5',81:'A5',84:'C6',93:'A6',96:'C7',105:'A7',108:'C8'
+};
+const SAMP_URL='./samples/';
 
-async function ensureSamplesLoaded() {
-  if (samplerReady) {
-    if (audioCtx && audioCtx.state === 'suspended') {
-      await audioCtx.resume();
-    }
-    audioUnlocked = true;
-    return;
-  }
-
-  if (!audioLoadingPromise) {
-    audioLoadingPromise = loadSamples();
-  }
-
-  try {
-    await audioLoadingPromise;
-  } catch (e) {
-    audioLoadingPromise = null;
-    alert('Chargement audio impossible : ' + e.message);
-    throw e;
-  }
-
-  if (audioCtx && audioCtx.state === 'suspended') {
-    await audioCtx.resume();
-  }
-
-  audioUnlocked = true;
-}
 async function loadSamples(){
-  const loadingScreen = document.getElementById('loading-screen');
-  const loadBar = document.getElementById('load-bar');
-  const loadMsg = document.getElementById('load-msg');
+  const loadingScreen=document.getElementById('loading-screen');
+  const loadBar=document.getElementById('load-bar');
+  const loadMsg=document.getElementById('load-msg');
 
-  loadingScreen.style.display = 'flex';
-  loadBar.style.width = '0%';
-  loadMsg.textContent = 'Chargement des sons…';
+  loadingScreen.style.display='flex';
+  loadBar.style.width='0%';
+  loadMsg.textContent='Chargement des sons…';
 
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  try{await audioCtx.resume()}catch(e){console.warn('resume failed',e)}
 
-  try {
-    await audioCtx.resume();
-  } catch (e) {
-    console.warn('resume() failed', e);
+  masterGain=audioCtx.createGain();
+  masterGain.gain.value=0.7;
+
+  const conv=audioCtx.createConvolver();
+  const irLen=audioCtx.sampleRate*2;
+  const ir=audioCtx.createBuffer(2,irLen,audioCtx.sampleRate);
+  for(let c=0;c<2;c++){
+    const d=ir.getChannelData(c);
+    for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,3)*0.5;
   }
+  conv.buffer=ir;
 
-  masterGain = audioCtx.createGain();
-  masterGain.gain.value = 0.7;
-
-  const conv = audioCtx.createConvolver();
-  const irLen = audioCtx.sampleRate * 2;
-  const ir = audioCtx.createBuffer(2, irLen, audioCtx.sampleRate);
-
-  for (let c = 0; c < 2; c++) {
-    const d = ir.getChannelData(c);
-    for (let i = 0; i < irLen; i++) {
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 3) * 0.5;
-    }
-  }
-
-  conv.buffer = ir;
-
-  const revGain = audioCtx.createGain();
-  revGain.gain.value = 0.15;
+  const revGain=audioCtx.createGain();
+  revGain.gain.value=0.15;
 
   masterGain.connect(audioCtx.destination);
   masterGain.connect(conv);
   conv.connect(revGain);
   revGain.connect(audioCtx.destination);
 
-  const keys = Object.keys(SAMPLE_MAP);
-  let loaded = 0;
-  let successCount = 0;
+  const keys=Object.keys(SAMPLE_MAP);
+  let loaded=0;
+  let successCount=0;
 
-  const setBar = () => {
-    const pct = Math.round((loaded / keys.length) * 100);
-    loadBar.style.width = pct + '%';
-    loadMsg.textContent = `Chargement des sons… ${pct}%`;
+  const setBar=()=>{
+    const pct=Math.round((loaded/keys.length)*100);
+    loadBar.style.width=pct+'%';
+    loadMsg.textContent='Chargement des sons… '+pct+'%';
   };
 
   setBar();
 
-  for (const midi of keys) {
-    const url = SAMP_URL + SAMPLE_MAP[midi] + '.mp3';
-    try {
-      const resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-
-      const arr = await resp.arrayBuffer();
-      const decoded = await audioCtx.decodeAudioData(arr);
-      sampleBuffers[parseInt(midi)] = decoded;
+  for(const midi of keys){
+    try{
+      const resp=await fetch(SAMP_URL+SAMPLE_MAP[midi]+'.mp3',{cache:'no-store'});
+      if(!resp.ok)throw new Error('HTTP '+resp.status);
+      const arr=await resp.arrayBuffer();
+      sampleBuffers[parseInt(midi)]=await audioCtx.decodeAudioData(arr);
       successCount++;
-      console.log('sample ok', midi, url);
-    } catch (e) {
-      console.error('sample fail', midi, url, e);
+    }catch(e){
+      console.warn('Sample fail',midi,SAMP_URL+SAMPLE_MAP[midi]+'.mp3',e);
     }
-
     loaded++;
     setBar();
   }
 
-  console.log('samples loaded =', successCount, '/', keys.length, 'audioState =', audioCtx.state);
-
-  if (successCount === 0) {
-    loadingScreen.style.display = 'none';
+  if(successCount===0){
+    loadingScreen.style.display='none';
     throw new Error("Aucun sample audio n'a pu être chargé.");
   }
 
-  samplerReady = true;
-  audioUnlocked = true;
-  loadMsg.textContent = `Prêt ! (${successCount} samples)`;
+  samplerReady=true;
+  audioUnlocked=true;
+  loadMsg.textContent='Prêt !';
 
-  await new Promise(r => setTimeout(r, 400));
-  loadingScreen.style.display = 'none';
+  await new Promise(r=>setTimeout(r,300));
+  loadingScreen.style.display='none';
 }
-async function ensureAudio(){
-  if (!audioCtx) return;
 
-  if (audioCtx.state === 'suspended') {
-    await audioCtx.resume();
-  }
-
-  if (audioUnlocked) return;
-
-  try {
-    const b = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-    const s = audioCtx.createBufferSource();
-    s.buffer = b;
-    s.connect(audioCtx.destination);
-    s.start(0);
-    audioUnlocked = true;
-  } catch (e) {
-    console.warn('Audio unlock failed', e);
-  }
-}
-function getNearestSample(m){let best=null,bd=999;for(const k of Object.keys(sampleBuffers)){const dist=Math.abs(parseInt(k)-m);if(dist<bd){bd=dist;best=parseInt(k)}}return best}
-function playSample(midi, when, dur){
-  if (!samplerReady || !audioCtx || !masterGain) return;
-
-  const nm = getNearestSample(midi);
-  if (!nm) return;
-
-  const buf = sampleBuffers[nm];
-  if (!buf) {
-    console.warn('no buffer for midi', midi, 'nearest', nm);
+async function ensureSamplesLoaded(){
+  if(samplerReady){
+    if(audioCtx&&audioCtx.state==='suspended')await audioCtx.resume();
+    audioUnlocked=true;
     return;
   }
 
-  const safeDur = Math.max(dur, 0.08);
+  if(!audioLoadingPromise){
+    audioLoadingPromise=loadSamples();
+  }
 
-  const src = audioCtx.createBufferSource();
-  src.buffer = buf;
-  src.playbackRate.value = Math.pow(2, (midi - nm) / 12);
+  try{
+    await audioLoadingPromise;
+  }catch(e){
+    audioLoadingPromise=null;
+    alert('Chargement audio impossible : '+e.message);
+    throw e;
+  }
 
-  const g = audioCtx.createGain();
-  const relT = midi < 48 ? 1.4 : 0.8;
+  if(audioCtx&&audioCtx.state==='suspended')await audioCtx.resume();
+  audioUnlocked=true;
+}
 
-  g.gain.setValueAtTime(0.9, when);
-  g.gain.setValueAtTime(0.9, when + Math.max(safeDur - 0.05, 0.02));
-  g.gain.exponentialRampToValueAtTime(0.0001, when + safeDur + relT);
+async function ensureAudio(){
+  if(!audioCtx)return;
+  if(audioCtx.state==='suspended')await audioCtx.resume();
+  if(audioUnlocked)return;
+
+  try{
+    const b=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
+    const s=audioCtx.createBufferSource();
+    s.buffer=b;
+    s.connect(audioCtx.destination);
+    s.start(0);
+    audioUnlocked=true;
+  }catch(e){
+    console.warn('Audio unlock failed',e);
+  }
+}
+
+function getNearestSample(m){
+  let best=null,bd=999;
+  for(const k of Object.keys(sampleBuffers)){
+    const dist=Math.abs(parseInt(k)-m);
+    if(dist<bd){bd=dist;best=parseInt(k)}
+  }
+  return best;
+}
+
+function playSample(midi,when,dur){
+  if(!samplerReady||!audioCtx||!masterGain)return;
+  const nm=getNearestSample(midi);
+  if(!nm)return;
+  const buf=sampleBuffers[nm];
+  if(!buf)return;
+
+  const safeDur=Math.max(dur,0.08);
+
+  const src=audioCtx.createBufferSource();
+  src.buffer=buf;
+  src.playbackRate.value=Math.pow(2,(midi-nm)/12);
+
+  const g=audioCtx.createGain();
+  const relT=midi<48?1.4:0.8;
+
+  g.gain.setValueAtTime(0.9,when);
+  g.gain.setValueAtTime(0.9,when+Math.max(safeDur-0.05,0.02));
+  g.gain.exponentialRampToValueAtTime(0.0001,when+safeDur+relT);
 
   src.connect(g);
   g.connect(masterGain);
-
   src.start(when);
-  src.stop(when + safeDur + relT + 0.1);
+  src.stop(when+safeDur+relT+0.1);
 }
+
 function scheduleAudio(){
   if(!samplerReady||!playing)return;
   const now=audioCtx.currentTime,winEnd=currentTime+0.25;
@@ -528,10 +527,18 @@ function scheduleAudio(){
     const nt=n.start+INTRO;
     if(nt>=currentTime&&nt<winEnd){
       const k=n.midi+'_'+n.start.toFixed(3);
-      if(!scheduledKeys[k]){const when=now+(nt-currentTime);if(when>=now-0.01){playSample(n.midi,Math.max(now,when),n.dur);scheduledKeys[k]=true;setTimeout(()=>delete scheduledKeys[k],(n.dur+2)*1000)}}
+      if(!scheduledKeys[k]){
+        const when=now+(nt-currentTime);
+        if(when>=now-0.01){
+          playSample(n.midi,Math.max(now,when),n.dur);
+          scheduledKeys[k]=true;
+          setTimeout(()=>delete scheduledKeys[k],(n.dur+2)*1000);
+        }
+      }
     }
   });
 }
+
 function clearScheduled(){Object.keys(scheduledKeys).forEach(k=>delete scheduledKeys[k])}
 function setVolume(v){if(masterGain)masterGain.gain.value=parseFloat(v)*1.4}
 
@@ -545,11 +552,15 @@ function freqToMidi(f){return Math.round(12*Math.log2(f/440)+69)}
 
 function detectChord(){
   if(!micAnalyser)return[];
-  if(!micAnalyser._buf){micAnalyser.fftSize=8192;micAnalyser._buf=new Float32Array(8192)}
+  if(!micAnalyser._buf){
+    micAnalyser.fftSize=8192;
+    micAnalyser._buf=new Float32Array(8192);
+  }
   micAnalyser.getFloatFrequencyData(micAnalyser._buf);
   const buf=micAnalyser._buf,sr=audioCtx.sampleRate,fftSize=8192;
   const binHz=sr/fftSize,minBin=Math.floor(60/binHz),maxBin=Math.ceil(2000/binHz);
-  let sum=0,cnt=0;for(let i=minBin;i<=maxBin;i++){sum+=buf[i];cnt++}
+  let sum=0,cnt=0;
+  for(let i=minBin;i<=maxBin;i++){sum+=buf[i];cnt++}
   const floor=sum/cnt,thr=floor+28;
   const peaks=[];
   for(let i=minBin+1;i<maxBin-1;i++){
@@ -564,20 +575,34 @@ function detectChord(){
   peaks.sort((a,b)=>b.amp-a.amp);
   const midis=[];
   peaks.slice(0,6).forEach(p=>{
-    const m=freqToMidi(p.freq);if(m<21||m>108)return;
-    const isH=midis.some(ex=>{const diff=(m-ex+120)%12;return diff===0||diff===7});
+    const m=freqToMidi(p.freq);
+    if(m<21||m>108)return;
+    const isH=midis.some(ex=>{
+      const diff=(m-ex+120)%12;
+      return diff===0||diff===7;
+    });
     if(!isH)midis.push(m);
   });
   return midis;
 }
+
 async function startMic(){
   try{
-    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    micStream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+    });
     micSource=audioCtx.createMediaStreamSource(micStream);
-    micAnalyser=audioCtx.createAnalyser();micAnalyser.fftSize=8192;micAnalyser.smoothingTimeConstant=0;
-    micSource.connect(micAnalyser);return true;
-  }catch(e){alert('Micro inaccessible : '+e.message);return false}
+    micAnalyser=audioCtx.createAnalyser();
+    micAnalyser.fftSize=8192;
+    micAnalyser.smoothingTimeConstant=0;
+    micSource.connect(micAnalyser);
+    return true;
+  }catch(e){
+    alert('Micro inaccessible : '+e.message);
+    return false;
+  }
 }
+
 function stopMic(){
   if(micSource)micSource.disconnect();
   if(micStream)micStream.getTracks().forEach(t=>t.stop());
@@ -598,37 +623,60 @@ function buildTutoNotes(){
     if(last&&Math.abs(n.start-last.start)<0.03)last.notes.push(n);
     else groups.push({start:n.start,notes:[n]});
   });
-  tutoNotes=groups.map(g=>({start:g.notes[0].start,midis:g.notes.map(n=>n.midi).sort((a,b)=>a-b),dur:Math.max(...g.notes.map(n=>n.dur))}));
+  tutoNotes=groups.map(g=>({
+    start:g.notes[0].start,
+    midis:g.notes.map(n=>n.midi).sort((a,b)=>a-b),
+    dur:Math.max(...g.notes.map(n=>n.dur))
+  }));
 }
 
 async function toggleTutoMode(){
   if(tutoMode){stopTutoMode();return}
-  const ok=await startMic();if(!ok)return;
+  const ok=await startMic();
+  if(!ok)return;
   tutoMode=true;
   const btn=document.getElementById('tuto-toggle');
-  btn.textContent='⏹ Arrêter le Tuto';btn.className='stop';
+  btn.textContent='⏹ Arrêter le Tuto';
+  btn.className='stop';
   document.getElementById('tuto-bar').style.display='flex';
   document.getElementById('play-btn').classList.add('disabled');
-  buildTutoNotes();tutoNoteIndex=0;tutoWaiting=false;
-  clearScheduled();currentTime=0;lastTS=null;playing=true;
+  buildTutoNotes();
+  tutoNoteIndex=0;
+  tutoWaiting=false;
+  clearScheduled();
+  currentTime=0;
+  lastTS=null;
+  playing=true;
   document.getElementById('play-icon').textContent='⏸';
-  tutoActive=true;updateTutoUI();
+  tutoActive=true;
+  updateTutoUI();
 }
+
 function stopTutoMode(){
-  tutoMode=false;tutoActive=false;tutoWaiting=false;
-  stopMic();clearInterval(tutoFlashIv);tutoFlashIv=null;flashMidi=[];flashOn=false;
+  tutoMode=false;
+  tutoActive=false;
+  tutoWaiting=false;
+  stopMic();
+  clearInterval(tutoFlashIv);
+  tutoFlashIv=null;
+  flashMidi=[];
+  flashOn=false;
   const btn=document.getElementById('tuto-toggle');
-  btn.textContent='🎤 Mode Tuto';btn.className='start';
+  btn.textContent='🎤 Mode Tuto';
+  btn.className='start';
   document.getElementById('tuto-bar').style.display='none';
   document.getElementById('play-btn').classList.remove('disabled');
-  playing=false;document.getElementById('play-icon').textContent='▶';
+  playing=false;
+  document.getElementById('play-icon').textContent='▶';
 }
+
 function updateTutoUI(){
   if(tutoNoteIndex>=tutoNotes.length){
     document.getElementById('tuto-status').textContent='🎉 Bravo !';
     document.getElementById('tuto-status').style.background='#1a4a1a';
     document.getElementById('tuto-status').style.borderColor='#27ae60';
-    document.getElementById('tuto-note').textContent='🎉';return;
+    document.getElementById('tuto-note').textContent='🎉';
+    return;
   }
   const n=tutoNotes[tutoNoteIndex];
   document.getElementById('tuto-note').textContent=n.midis.length>1?n.midis.map(midiToName).join('+'):midiToName(n.midis[0]);
@@ -637,20 +685,36 @@ function updateTutoUI(){
   document.getElementById('tuto-status').style.borderColor='#e67e22';
   document.getElementById('tuto-feedback').textContent='🎵';
 }
-function startFlash(midis){flashMidi=midis;flashOn=true;clearInterval(tutoFlashIv);tutoFlashIv=setInterval(()=>{flashOn=!flashOn},400)}
-function stopFlash(){clearInterval(tutoFlashIv);tutoFlashIv=null;flashMidi=[];flashOn=false}
+
+function startFlash(midis){
+  flashMidi=midis;
+  flashOn=true;
+  clearInterval(tutoFlashIv);
+  tutoFlashIv=setInterval(()=>{flashOn=!flashOn},400);
+}
+function stopFlash(){
+  clearInterval(tutoFlashIv);
+  tutoFlashIv=null;
+  flashMidi=[];
+  flashOn=false;
+}
 
 function tutoTick(){
   if(!tutoMode||!tutoActive)return;
-  const n=tutoNotes[tutoNoteIndex];if(!n)return;
+  const n=tutoNotes[tutoNoteIndex];
+  if(!n)return;
   const noteTime=n.start+INTRO;
   if(!tutoWaiting){
     if(currentTime>=noteTime-0.04){
-      playing=false;document.getElementById('play-icon').textContent='▶';
-      currentTime=noteTime;tutoWaiting=true;updateTutoUI();startFlash(n.midis);
+      playing=false;
+      document.getElementById('play-icon').textContent='▶';
+      currentTime=noteTime;
+      tutoWaiting=true;
+      updateTutoUI();
+      startFlash(n.midis);
     }
   }else{
-    const detected=detectChord();const expected=n.midis;
+    const detected=detectChord(),expected=n.midis;
     if(detected.length>0){
       document.getElementById('tuto-detected').textContent=detected.map(midiToName).join(', ');
       const matched=expected.filter(em=>detected.some(dm=>dm===em));
@@ -662,8 +726,17 @@ function tutoTick(){
         document.getElementById('tuto-status').textContent='✅ Parfait !';
         document.getElementById('tuto-status').style.background='#1a4a1a';
         document.getElementById('tuto-status').style.borderColor='#27ae60';
-        stopFlash();tutoWaiting=false;tutoNoteIndex++;
-        setTimeout(()=>{if(!tutoMode)return;if(tutoNoteIndex>=tutoNotes.length){updateTutoUI();return}updateTutoUI();playing=true;lastTS=null;document.getElementById('play-icon').textContent='⏸'},400);
+        stopFlash();
+        tutoWaiting=false;
+        tutoNoteIndex++;
+        setTimeout(()=>{
+          if(!tutoMode)return;
+          if(tutoNoteIndex>=tutoNotes.length){updateTutoUI();return}
+          updateTutoUI();
+          playing=true;
+          lastTS=null;
+          document.getElementById('play-icon').textContent='⏸';
+        },400);
       }else{
         const missing=expected.filter(em=>!detected.some(dm=>dm===em)).map(midiToName).join(', ');
         document.getElementById('tuto-feedback').textContent='❌';
@@ -671,7 +744,10 @@ function tutoTick(){
         document.getElementById('tuto-status').style.background='#3a1a1a';
         document.getElementById('tuto-status').style.borderColor='#c0392b';
       }
-    }else{document.getElementById('tuto-pitch-bar').style.width='0%';document.getElementById('tuto-detected').textContent='—'}
+    }else{
+      document.getElementById('tuto-pitch-bar').style.width='0%';
+      document.getElementById('tuto-detected').textContent='—';
+    }
   }
 }
 
@@ -683,46 +759,101 @@ const FALL_SPEED=160,MASK_H=16,NOTE_GAP=2,INTRO=3;
 function getPianoH(){return window.innerWidth>window.innerHeight?55:90}
 function isBlack(m){return[1,3,6,8,10].includes(m%12)}
 let _layout=null,_lw=0;
+
 function getLayout(w){
   if(_layout&&_lw===w)return _layout;
-  const whites=[];for(let m=MIDI_MIN;m<=MIDI_MAX;m++)if(!isBlack(m))whites.push(m);
+  const whites=[];
+  for(let m=MIDI_MIN;m<=MIDI_MAX;m++)if(!isBlack(m))whites.push(m);
   const ww=w/whites.length,L=new Array(TOTAL_KEYS);
   whites.forEach((m,i)=>L[m-MIDI_MIN]={x:i*ww,w:ww,black:false});
-  for(let m=MIDI_MIN;m<=MIDI_MAX;m++){if(isBlack(m)){let lm=m-1;while(isBlack(lm))lm--;const li=L[lm-MIDI_MIN];L[m-MIDI_MIN]={x:li.x+li.w*.62,w:ww*.58,black:true}}}
-  _layout=L;_lw=w;return L;
+  for(let m=MIDI_MIN;m<=MIDI_MAX;m++){
+    if(isBlack(m)){
+      let lm=m-1;
+      while(isBlack(lm))lm--;
+      const li=L[lm-MIDI_MIN];
+      L[m-MIDI_MIN]={x:li.x+li.w*.62,w:ww*.58,black:true};
+    }
+  }
+  _layout=L;_lw=w;
+  return L;
 }
+
 function hexRgb(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)}}
 
 function drawNote(ctx,x,y,w,h,color,glow){
-  if(w<=0)return;y+=NOTE_GAP/2;h=Math.max(h-NOTE_GAP,3);
-  const r=Math.min(w/2,8);h=Math.max(h,r*2+2);
-  ctx.shadowBlur=14;ctx.shadowColor=glow;
+  if(w<=0)return;
+  y+=NOTE_GAP/2;
+  h=Math.max(h-NOTE_GAP,3);
+  const r=Math.min(w/2,8);
+  h=Math.max(h,r*2+2);
+  ctx.shadowBlur=14;
+  ctx.shadowColor=glow;
   const c=hexRgb(color);
   const g=ctx.createLinearGradient(x,y,x+w,y);
   g.addColorStop(0,`rgba(${c.r+40},${c.g+40},${c.b+40},1)`);
   g.addColorStop(.4,color);
   g.addColorStop(1,`rgba(${Math.max(c.r-30,0)},${Math.max(c.g-30,0)},${Math.max(c.b-30,0)},1)`);
-  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
-  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
-  ctx.closePath();ctx.fillStyle=g;ctx.fill();ctx.shadowBlur=0;
-  ctx.beginPath();ctx.moveTo(x+r,y+1);ctx.lineTo(x+w-r,y+1);ctx.quadraticCurveTo(x+w-1,y+1,x+w-1,y+r);
-  ctx.lineTo(x+w-1,y+Math.min(h*.35,10));ctx.lineTo(x+1,y+Math.min(h*.35,10));ctx.lineTo(x+1,y+r);
-  ctx.quadraticCurveTo(x+1,y+1,x+r,y+1);ctx.closePath();ctx.fillStyle='rgba(255,255,255,.18)';ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+  ctx.fillStyle=g;
+  ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y+1);
+  ctx.lineTo(x+w-r,y+1);
+  ctx.quadraticCurveTo(x+w-1,y+1,x+w-1,y+r);
+  ctx.lineTo(x+w-1,y+Math.min(h*.35,10));
+  ctx.lineTo(x+1,y+Math.min(h*.35,10));
+  ctx.lineTo(x+1,y+r);
+  ctx.quadraticCurveTo(x+1,y+1,x+r,y+1);
+  ctx.closePath();
+  ctx.fillStyle='rgba(255,255,255,.18)';
+  ctx.fill();
 }
 
 function drawScene(t,w,rh){
   const L=getLayout(w),pps=FALL_SPEED,ph=getPianoH();
-  rollCtx.fillStyle='#0c0c1e';rollCtx.fillRect(0,0,w,rh);
-  for(let i=0;i<TOTAL_KEYS;i++){if(L[i]&&L[i].black){rollCtx.fillStyle='rgba(0,0,0,.22)';rollCtx.fillRect(L[i].x,0,L[i].w,rh)}}
-  rollCtx.strokeStyle='rgba(255,255,255,.035)';rollCtx.lineWidth=1;
+  rollCtx.fillStyle='#0c0c1e';
+  rollCtx.fillRect(0,0,w,rh);
+
+  for(let i=0;i<TOTAL_KEYS;i++){
+    if(L[i]&&L[i].black){
+      rollCtx.fillStyle='rgba(0,0,0,.22)';
+      rollCtx.fillRect(L[i].x,0,L[i].w,rh);
+    }
+  }
+
+  rollCtx.strokeStyle='rgba(255,255,255,.035)';
+  rollCtx.lineWidth=1;
   let bt=Math.ceil((t-.01)/.5)*.5;
-  while(bt<t+rh/pps+.5){const y=rh-(bt-t)*pps;rollCtx.beginPath();rollCtx.moveTo(0,y);rollCtx.lineTo(w,y);rollCtx.stroke();bt+=.5}
-  rollCtx.save();rollCtx.beginPath();rollCtx.rect(0,MASK_H,w,rh-MASK_H);rollCtx.clip();
+  while(bt<t+rh/pps+.5){
+    const y=rh-(bt-t)*pps;
+    rollCtx.beginPath();
+    rollCtx.moveTo(0,y);
+    rollCtx.lineTo(w,y);
+    rollCtx.stroke();
+    bt+=.5;
+  }
+
+  rollCtx.save();
+  rollCtx.beginPath();
+  rollCtx.rect(0,MASK_H,w,rh-MASK_H);
+  rollCtx.clip();
+
   const active={};
   const tm=tutoMode&&tutoNotes[tutoNoteIndex]?tutoNotes[tutoNoteIndex].midis:[];
   notes.forEach(n=>{
-    const nt=n.start+INTRO,k=L[n.midi-MIDI_MIN];if(!k)return;
+    const nt=n.start+INTRO,k=L[n.midi-MIDI_MIN];
+    if(!k)return;
     const yB=rh-(nt-t)*pps,yT=yB-n.dur*pps;
     if(yB<-20||yT>rh+20)return;
     const right=n.hand==='right';
@@ -731,37 +862,94 @@ function drawScene(t,w,rh){
     drawNote(rollCtx,k.x+1,yT,k.w-2,Math.max(yB-yT,18),color,glow);
     if(nt<=t+.02&&nt+n.dur>=t)active[n.midi]=n.hand;
   });
-  rollCtx.shadowBlur=0;rollCtx.restore();
+  rollCtx.shadowBlur=0;
+  rollCtx.restore();
 
-  // Piano
   pianoCtx.clearRect(0,0,w,ph);
-  const bg=pianoCtx.createLinearGradient(0,0,0,ph);bg.addColorStop(0,'#2a2a2a');bg.addColorStop(1,'#111');
-  pianoCtx.fillStyle=bg;pianoCtx.fillRect(0,0,w,ph);
+  const bg=pianoCtx.createLinearGradient(0,0,0,ph);
+  bg.addColorStop(0,'#2a2a2a');
+  bg.addColorStop(1,'#111');
+  pianoCtx.fillStyle=bg;
+  pianoCtx.fillRect(0,0,w,ph);
+
   for(let i=0;i<TOTAL_KEYS;i++){
-    const k=L[i];if(!k||k.black)continue;const midi=MIDI_MIN+i;const a=active[midi];
+    const k=L[i];
+    if(!k||k.black)continue;
+    const midi=MIDI_MIN+i;
+    const a=active[midi];
     const isF=tutoMode&&flashOn&&flashMidi.includes(midi);
     const x=k.x,kw=k.w-1;
-    if(a){const g=pianoCtx.createLinearGradient(x,0,x+kw,0);g.addColorStop(0,a==='right'?'#6ab8ff':'#5dd68a');g.addColorStop(1,a==='right'?'#3a8fe0':'#2ebd6e');pianoCtx.fillStyle=g}
-    else if(isF){const g=pianoCtx.createLinearGradient(x,0,x+kw,0);g.addColorStop(0,'#ffe066');g.addColorStop(1,'#ffaa00');pianoCtx.fillStyle=g}
-    else{const g=pianoCtx.createLinearGradient(x,0,x,ph);g.addColorStop(0,'#fafaf8');g.addColorStop(.7,'#f0ede6');g.addColorStop(1,'#ddd9d0');pianoCtx.fillStyle=g}
-    pianoCtx.beginPath();pianoCtx.roundRect(x,0,kw,ph,[0,0,5,5]);pianoCtx.fill();
-    pianoCtx.strokeStyle=a?'rgba(0,0,0,.3)':'#bbb';pianoCtx.lineWidth=1;pianoCtx.stroke();
-    if(!a&&!isF){pianoCtx.fillStyle='rgba(255,255,255,.6)';pianoCtx.fillRect(x+1,0,kw-2,4)}
+    if(a){
+      const g=pianoCtx.createLinearGradient(x,0,x+kw,0);
+      g.addColorStop(0,a==='right'?'#6ab8ff':'#5dd68a');
+      g.addColorStop(1,a==='right'?'#3a8fe0':'#2ebd6e');
+      pianoCtx.fillStyle=g;
+    }else if(isF){
+      const g=pianoCtx.createLinearGradient(x,0,x+kw,0);
+      g.addColorStop(0,'#ffe066');
+      g.addColorStop(1,'#ffaa00');
+      pianoCtx.fillStyle=g;
+    }else{
+      const g=pianoCtx.createLinearGradient(x,0,x,ph);
+      g.addColorStop(0,'#fafaf8');
+      g.addColorStop(.7,'#f0ede6');
+      g.addColorStop(1,'#ddd9d0');
+      pianoCtx.fillStyle=g;
+    }
+    pianoCtx.beginPath();
+    pianoCtx.roundRect(x,0,kw,ph,[0,0,5,5]);
+    pianoCtx.fill();
+    pianoCtx.strokeStyle=a?'rgba(0,0,0,.3)':'#bbb';
+    pianoCtx.lineWidth=1;
+    pianoCtx.stroke();
+    if(!a&&!isF){
+      pianoCtx.fillStyle='rgba(255,255,255,.6)';
+      pianoCtx.fillRect(x+1,0,kw-2,4);
+    }
   }
+
   for(let i=0;i<TOTAL_KEYS;i++){
-    const k=L[i];if(!k||!k.black)continue;const midi=MIDI_MIN+i;const a=active[midi];
+    const k=L[i];
+    if(!k||!k.black)continue;
+    const midi=MIDI_MIN+i;
+    const a=active[midi];
     const isF=tutoMode&&flashOn&&flashMidi.includes(midi);
     const x=k.x,kw=k.w,bh=ph*.63;
-    if(a){const g=pianoCtx.createLinearGradient(x,0,x+kw,0);g.addColorStop(0,a==='right'?'#2a6fb8':'#1a8040');g.addColorStop(1,a==='right'?'#1a4f8a':'#155a2e');pianoCtx.fillStyle=g}
-    else if(isF){const g=pianoCtx.createLinearGradient(x,0,x+kw,0);g.addColorStop(0,'#cc9900');g.addColorStop(1,'#886600');pianoCtx.fillStyle=g}
-    else{const g=pianoCtx.createLinearGradient(x,0,x,bh);g.addColorStop(0,'#2a2a2a');g.addColorStop(.6,'#1a1a1a');g.addColorStop(1,'#0d0d0d');pianoCtx.fillStyle=g}
-    pianoCtx.beginPath();pianoCtx.roundRect(x,0,kw,bh,[0,0,4,4]);pianoCtx.fill();
-    if(!a&&!isF){
-      pianoCtx.fillStyle='rgba(255,255,255,.2)';pianoCtx.beginPath();pianoCtx.roundRect(x+1,1,kw-2,6,[2,2,0,0]);pianoCtx.fill();
+    if(a){
+      const g=pianoCtx.createLinearGradient(x,0,x+kw,0);
+      g.addColorStop(0,a==='right'?'#2a6fb8':'#1a8040');
+      g.addColorStop(1,a==='right'?'#1a4f8a':'#155a2e');
+      pianoCtx.fillStyle=g;
+    }else if(isF){
+      const g=pianoCtx.createLinearGradient(x,0,x+kw,0);
+      g.addColorStop(0,'#cc9900');
+      g.addColorStop(1,'#886600');
+      pianoCtx.fillStyle=g;
+    }else{
+      const g=pianoCtx.createLinearGradient(x,0,x,bh);
+      g.addColorStop(0,'#2a2a2a');
+      g.addColorStop(.6,'#1a1a1a');
+      g.addColorStop(1,'#0d0d0d');
+      pianoCtx.fillStyle=g;
     }
-    pianoCtx.strokeStyle='rgba(0,0,0,.8)';pianoCtx.lineWidth=1;pianoCtx.beginPath();pianoCtx.roundRect(x,0,kw,bh,[0,0,4,4]);pianoCtx.stroke();
+    pianoCtx.beginPath();
+    pianoCtx.roundRect(x,0,kw,bh,[0,0,4,4]);
+    pianoCtx.fill();
+    if(!a&&!isF){
+      pianoCtx.fillStyle='rgba(255,255,255,.2)';
+      pianoCtx.beginPath();
+      pianoCtx.roundRect(x+1,1,kw-2,6,[2,2,0,0]);
+      pianoCtx.fill();
+    }
+    pianoCtx.strokeStyle='rgba(0,0,0,.8)';
+    pianoCtx.lineWidth=1;
+    pianoCtx.beginPath();
+    pianoCtx.roundRect(x,0,kw,bh,[0,0,4,4]);
+    pianoCtx.stroke();
   }
-  pianoCtx.fillStyle='rgba(74,159,255,.3)';pianoCtx.fillRect(0,0,w,2);
+
+  pianoCtx.fillStyle='rgba(74,159,255,.3)';
+  pianoCtx.fillRect(0,0,w,2);
 }
 
 // ═══════════════════════════════
@@ -771,12 +959,12 @@ let notes=[],playing=false,currentTime=0,lastTS=null,speed=1,totalDuration=0,ani
 let rollCanvas,pianoCanvas,rollCtx,pianoCtx;
 let importedSongs=[];
 let currentSong=null;
-
 let remoteSongs=[];
 const DIFF_LABEL=['','Débutant','Intermédiaire','Avancé'];
 
 function makeSongCard(song,imported){
-  const div=document.createElement('div');div.className='song-card';
+  const div=document.createElement('div');
+  div.className='song-card';
   const icon=imported?'📄':(song.icon||'🎵');
   const iconClass=imported?'imported':'builtin';
   div.innerHTML=`
@@ -788,18 +976,21 @@ function makeSongCard(song,imported){
     ${song.difficulty?`<span class="song-diff diff-${song.difficulty}">${DIFF_LABEL[song.difficulty]}</span>`:''}
     <span class="song-arrow">›</span>
   `;
-  div.onclick=(e)=>selectSong(song,imported,div);
+  div.onclick=()=>selectSong(song,imported,div);
   return div;
 }
 
 function renderLibrary(){
-  const sl=document.getElementById('song-list');sl.innerHTML='';
+  const sl=document.getElementById('song-list');
+  sl.innerHTML='';
   if(remoteSongs.length===0){
     sl.innerHTML='<div class="empty-msg">Aucun morceau dans la bibliothèque.<br>Ajoutez des fichiers MIDI dans le dossier <b>midi/</b> et mettez à jour <b>list.json</b>.</div>';
   }else{
     remoteSongs.forEach(s=>sl.appendChild(makeSongCard(s,false)));
   }
-  const il=document.getElementById('imported-list');il.innerHTML='';
+
+  const il=document.getElementById('imported-list');
+  il.innerHTML='';
   if(importedSongs.length===0){
     il.innerHTML='<div class="empty-msg">Aucun morceau importé.</div>';
   }else{
@@ -807,45 +998,40 @@ function renderLibrary(){
   }
 }
 
-async function selectSong(song, imported, card){
-  if (card) {
-    card.style.opacity = '0.6';
-    card.style.pointerEvents = 'none';
+async function selectSong(song,imported,card){
+  if(card){
+    card.style.opacity='0.6';
+    card.style.pointerEvents='none';
   }
 
-  try {
+  try{
     await ensureSamplesLoaded();
 
-    if (imported) {
-      const data = await dbGet(song.id);
-      if (!data) {
-        throw new Error('Morceau introuvable. Veuillez le ré-importer.');
-      }
-
-      notes = data.notes;
-      totalDuration = data.duration;
-      currentSong = song;
+    if(imported){
+      const data=await dbGet(song.id);
+      if(!data)throw new Error('Morceau introuvable. Veuillez le ré-importer.');
+      notes=data.notes;
+      totalDuration=data.duration;
+      currentSong=song;
       showPlayer();
       return;
     }
 
-    const resp = await fetch('./midi/' + song.file);
-    if (!resp.ok) throw new Error('Fichier introuvable (' + resp.status + ')');
-
-    const buf = await resp.arrayBuffer();
-    const parsed = parseMidi(buf);
-    if (!parsed.length) throw new Error('Aucune note trouvée');
-
-    notes = parsed;
-    totalDuration = Math.max(...notes.map(n => n.start + n.dur)) + 1;
-    currentSong = song;
+    const resp=await fetch('./midi/'+song.file);
+    if(!resp.ok)throw new Error('Fichier introuvable ('+resp.status+')');
+    const buf=await resp.arrayBuffer();
+    const parsed=parseMidi(buf);
+    if(!parsed.length)throw new Error('Aucune note trouvée');
+    notes=parsed;
+    totalDuration=Math.max(...notes.map(n=>n.start+n.dur))+1;
+    currentSong=song;
     showPlayer();
-  } catch (e) {
-    alert('Impossible de charger "' + song.title + '" :\n' + e.message);
-  } finally {
-    if (card) {
-      card.style.opacity = '1';
-      card.style.pointerEvents = '';
+  }catch(e){
+    alert('Impossible de charger "'+song.title+'" :\n'+e.message);
+  }finally{
+    if(card){
+      card.style.opacity='1';
+      card.style.pointerEvents='';
     }
   }
 }
@@ -864,46 +1050,49 @@ async function importMidi(file){
     importedSongs.push(meta);
     localStorage.setItem('piano-tuto-imports',JSON.stringify(importedSongs));
     renderLibrary();
-    // Auto-open
-    notes=parsed;totalDuration=dur;currentSong=meta;await ensureSamplesLoaded();showPlayer();
-  }catch(e){alert('Erreur : '+e.message)}
+    notes=parsed;
+    totalDuration=dur;
+    currentSong=meta;
+    await ensureSamplesLoaded();
+    showPlayer();
+  }catch(e){
+    alert('Erreur : '+e.message);
+  }
 }
 
 function showPlayer(){
-  console.log('showPlayer → audioCtx state =', audioCtx?.state, 'samplerReady =', samplerReady);
+  document.getElementById('library-screen').style.display='none';
+  document.getElementById('player-screen').style.display='flex';
+  document.getElementById('p-title').textContent=currentSong.title;
+  document.getElementById('p-composer').textContent=currentSong.composer||'Fichier importé';
 
-  document.getElementById('library-screen').style.display = 'none';
-  document.getElementById('player-screen').style.display = 'flex';
-  document.getElementById('p-title').textContent = currentSong.title;
-  document.getElementById('p-composer').textContent = currentSong.composer || 'Fichier importé';
+  currentTime=0;
+  playing=true;
+  lastTS=null;
+  speed=1;
 
-  currentTime = 0;
-  playing = true;
-  lastTS = null;
-  speed = 1;
+  document.getElementById('speed-slider').value=1;
+  document.getElementById('speed-lbl').textContent='×1.0';
+  document.getElementById('play-icon').textContent='⏸';
 
-  document.getElementById('speed-slider').value = 1;
-  document.getElementById('speed-lbl').textContent = '×1.0';
-  document.getElementById('play-icon').textContent = '⏸';
-
-  setTimeout(async () => {
-    rollCanvas = document.getElementById('roll-canvas');
-    rollCtx = rollCanvas.getContext('2d', { alpha:false });
-    pianoCanvas = document.getElementById('piano-canvas');
-    pianoCtx = pianoCanvas.getContext('2d');
-
+  setTimeout(async ()=>{
+    rollCanvas=document.getElementById('roll-canvas');
+    rollCtx=rollCanvas.getContext('2d',{alpha:false});
+    pianoCanvas=document.getElementById('piano-canvas');
+    pianoCtx=pianoCanvas.getContext('2d');
     resize();
     await ensureAudio();
-
-    if (animId) cancelAnimationFrame(animId);
-    animId = requestAnimationFrame(liveLoop);
-  }, 30);
+    if(animId)cancelAnimationFrame(animId);
+    animId=requestAnimationFrame(liveLoop);
+  },30);
 }
 
 function goLibrary(){
   if(tutoMode)stopTutoMode();
-  playing=false;clearScheduled();
-  if(animId)cancelAnimationFrame(animId);animId=null;
+  playing=false;
+  clearScheduled();
+  if(animId)cancelAnimationFrame(animId);
+  animId=null;
   document.getElementById('player-screen').style.display='none';
   document.getElementById('library-screen').style.display='flex';
 }
@@ -911,15 +1100,25 @@ function goLibrary(){
 // ═══════════════════════════════
 // PLAYER LOOP
 // ═══════════════════════════════
-function fmt(s){s=Math.max(0,s);const m=Math.floor(s/60);return m+':'+String(Math.floor(s%60)).padStart(2,'0')}
+function fmt(s){
+  s=Math.max(0,s);
+  const m=Math.floor(s/60);
+  return m+':'+String(Math.floor(s%60)).padStart(2,'0');
+}
 
 function liveLoop(ts){
   if(playing){
-    if(lastTS)currentTime+=((ts-lastTS)/1000)*speed;lastTS=ts;
-    if(currentTime>=totalDuration+INTRO+.5){currentTime=0;clearScheduled()}
+    if(lastTS)currentTime+=((ts-lastTS)/1000)*speed;
+    lastTS=ts;
+    if(currentTime>=totalDuration+INTRO+.5){
+      currentTime=0;
+      clearScheduled();
+    }
     scheduleAudio();
   }else lastTS=null;
+
   tutoTick();
+
   if(rollCanvas)drawScene(currentTime,rollCanvas.width,rollCanvas.height);
   const total=totalDuration+INTRO;
   document.getElementById('seek-fill').style.width=(total>0?Math.min(currentTime/total,1)*100:0)+'%';
@@ -928,82 +1127,35 @@ function liveLoop(ts){
 }
 
 async function togglePlay(){
-  if (tutoMode) return;
-
+  if(tutoMode)return;
   await ensureAudio();
-
-  playing = !playing;
-  if (!playing) clearScheduled();
-
-  document.getElementById('play-icon').textContent = playing ? '⏸' : '▶';
-
-  if (playing) lastTS = null;
-
-  console.log('togglePlay → audioCtx state =', audioCtx?.state, 'samplerReady =', samplerReady);
+  playing=!playing;
+  if(!playing)clearScheduled();
+  document.getElementById('play-icon').textContent=playing?'⏸':'▶';
+  if(playing)lastTS=null;
 }
+
 async function doRestart(){
-  if (tutoMode) return;
-
+  if(tutoMode)return;
   await ensureAudio();
-
   clearScheduled();
-  currentTime = 0;
-  lastTS = null;
-  playing = true;
-  document.getElementById('play-icon').textContent = '⏸';
+  currentTime=0;
+  lastTS=null;
+  playing=true;
+  document.getElementById('play-icon').textContent='⏸';
 }
-async function testAudio(){
-  const btn = document.getElementById('test-audio-btn');
-  btn.textContent = 'Tap OK';
-  btn.style.opacity = '0.6';
 
-  setTimeout(() => {
-    btn.textContent = 'Test';
-    btn.style.opacity = '1';
-  }, 500);
-
-  try {
-    alert('testAudio appelée');
-
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    await audioCtx.resume();
-
-    if (!masterGain) {
-      masterGain = audioCtx.createGain();
-      masterGain.gain.value = 0.7;
-      masterGain.connect(audioCtx.destination);
-    }
-
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = 440;
-
-    gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.5);
-  } catch (e) {
-    alert('testAudio erreur : ' + e.message);
-    console.error(e);
-  }
-}
 function seekTo(e){
-  if(tutoMode)return;clearScheduled();
+  if(tutoMode)return;
+  clearScheduled();
   const r=e.currentTarget.getBoundingClientRect();
-  currentTime=Math.max(0,(e.clientX-r.left)/r.width*(totalDuration+INTRO));lastTS=null;
+  currentTime=Math.max(0,(e.clientX-r.left)/r.width*(totalDuration+INTRO));
+  lastTS=null;
 }
+
 function resize(){
-  if(!rollCanvas)return;_layout=null;
+  if(!rollCanvas)return;
+  _layout=null;
   const ph=getPianoH();
   document.getElementById('piano-wrap').style.height=ph+'px';
   rollCanvas.width=rollCanvas.parentElement.clientWidth;
@@ -1011,6 +1163,7 @@ function resize(){
   pianoCanvas.width=pianoCanvas.parentElement.clientWidth;
   pianoCanvas.height=ph;
 }
+
 window.addEventListener('resize',resize);
 
 // ═══════════════════════════════
@@ -1019,37 +1172,36 @@ window.addEventListener('resize',resize);
 async function init(){
   await openDB();
 
-  try {
-    const stored = localStorage.getItem('piano-tuto-imports');
-    if (stored) importedSongs = JSON.parse(stored);
-  } catch (e) {}
+  try{
+    const stored=localStorage.getItem('piano-tuto-imports');
+    if(stored)importedSongs=JSON.parse(stored);
+  }catch(e){}
 
-  try {
-    const resp = await fetch('./midi/list.json?t=' + Date.now());
-    if (resp.ok) {
-      const list = await resp.json();
-      remoteSongs = list.map(s => ({
-        id: 'remote-' + s.file,
-        title: s.title || s.file.replace(/\.(mid|midi)$/i, ''),
-        composer: s.composer || '',
-        difficulty: s.difficulty || 0,
-        icon: s.icon || '🎵',
-        file: s.file
+  try{
+    const resp=await fetch('./midi/list.json?t='+Date.now());
+    if(resp.ok){
+      const list=await resp.json();
+      remoteSongs=list.map(s=>({
+        id:'remote-'+s.file,
+        title:s.title||s.file.replace(/\.(mid|midi)$/i,''),
+        composer:s.composer||'',
+        difficulty:s.difficulty||0,
+        icon:s.icon||'🎵',
+        file:s.file
       }));
     }
-  } catch (e) {
-    console.warn('list.json non trouvé', e);
+  }catch(e){
+    console.warn('list.json non trouvé',e);
   }
 
   renderLibrary();
+  document.getElementById('loading-screen').style.display='none';
 
-  document.getElementById('loading-screen').style.display = 'none';
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 }
-// Global audio unlock on any user interaction
+
 document.addEventListener('touchstart',()=>ensureAudio(),{once:true});
 document.addEventListener('click',()=>ensureAudio(),{once:true});
 init();
