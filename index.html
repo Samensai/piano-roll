@@ -171,8 +171,23 @@ body{
 
 /* Tuto bar */
 #tuto-bar{
-  background:#0a0a18;border-top:1px solid #1a1a35;
-  padding:9px 14px;display:none;align-items:center;gap:8px;flex-shrink:0;
+  background:#0a0a18;
+  border-top:1px solid #1a1a35;
+  padding:9px 14px;
+  display:none;
+  align-items:center;
+  gap:8px;
+  flex-shrink:0;
+}
+
+#tuto-prev, #tuto-next{
+  border:none;
+  background:#1a1a3a;
+  color:#a0c4ff;
+  border-radius:8px;
+  padding:4px 10px;
+  font-size:16px;
+  font-weight:700;
 }
 #tuto-play-label{font-size:9px;color:#5a5a7a}
 #tuto-note{font-size:18px;font-weight:900;min-width:32px;text-align:center}
@@ -266,6 +281,8 @@ input[type=file]{display:none}
   <div id="roll-wrap"><canvas id="roll-canvas"></canvas></div>
   <div id="piano-wrap"><canvas id="piano-canvas"></canvas></div>
   <div id="tuto-bar">
+    <button id="tuto-prev" onclick="tutoPrev()">‹</button>
+    <button id="tuto-next" onclick="tutoNext()">›</button>
     <span id="tuto-play-label">Jouez :</span>
     <span id="tuto-note">—</span>
     <span id="tuto-status">En attente…</span>
@@ -521,7 +538,7 @@ function playSample(midi,when,dur){
 }
 
 function scheduleAudio(){
-  if(!samplerReady||!playing)return;
+  if(!samplerReady || !playing || tutoMode) return;
   const now=audioCtx.currentTime,winEnd=currentTime+0.25;
   notes.forEach(n=>{
     const nt=n.start+INTRO;
@@ -547,62 +564,108 @@ function setVolume(v){if(masterGain)masterGain.gain.value=parseFloat(v)*1.4}
 // ═══════════════════════════════
 let micStream=null,micAnalyser=null,micSource=null;
 const NOTE_NAMES=['Do','Do#','Ré','Ré#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+const MIC_RMS_GATE = 0.015;     // seuil de bruit ambiant
+const MIN_MATCH_RATIO = 0.75;   // 75% des notes d'un accord suffisent
+const MAX_DETECTED_NOTES = 8;
 function midiToName(m){return NOTE_NAMES[m%12]+Math.floor(m/12-1)}
 function freqToMidi(f){return Math.round(12*Math.log2(f/440)+69)}
 
 function detectChord(){
-  if(!micAnalyser)return[];
-  if(!micAnalyser._buf){
-    micAnalyser.fftSize=8192;
-    micAnalyser._buf=new Float32Array(8192);
+  if(!micAnalyser) return [];
+
+  if(!micAnalyser._fftBuf){
+    micAnalyser.fftSize = 16384;
+    micAnalyser._fftBuf = new Float32Array(micAnalyser.frequencyBinCount);
+    micAnalyser._timeBuf = new Float32Array(micAnalyser.fftSize);
   }
-  micAnalyser.getFloatFrequencyData(micAnalyser._buf);
-  const buf=micAnalyser._buf,sr=audioCtx.sampleRate,fftSize=8192;
-  const binHz=sr/fftSize,minBin=Math.floor(60/binHz),maxBin=Math.ceil(2000/binHz);
-  let sum=0,cnt=0;
-  for(let i=minBin;i<=maxBin;i++){sum+=buf[i];cnt++}
-  const floor=sum/cnt,thr=floor+28;
-  const peaks=[];
-  for(let i=minBin+1;i<maxBin-1;i++){
-    if(buf[i]>thr&&buf[i]>buf[i-1]&&buf[i]>buf[i+1]){
-      const a=buf[i-1],b=buf[i],cc=buf[i+1];
-      const sh=(cc-a)/(2*(2*b-a-cc));
-      const freq=(i+sh)*binHz;
-      if(freq>60&&freq<2000)peaks.push({freq,amp:b});
+
+  micAnalyser.getFloatTimeDomainData(micAnalyser._timeBuf);
+
+  let rms = 0;
+  for(let i = 0; i < micAnalyser._timeBuf.length; i++){
+    const v = micAnalyser._timeBuf[i];
+    rms += v * v;
+  }
+  rms = Math.sqrt(rms / micAnalyser._timeBuf.length);
+
+  if(rms < MIC_RMS_GATE){
+    return [];
+  }
+
+  micAnalyser.getFloatFrequencyData(micAnalyser._fftBuf);
+
+  const buf = micAnalyser._fftBuf;
+  const sr = audioCtx.sampleRate;
+  const fftSize = micAnalyser.fftSize;
+  const binHz = sr / fftSize;
+
+  const minBin = Math.floor(50 / binHz);
+  const maxBin = Math.ceil(2200 / binHz);
+
+  let sum = 0, cnt = 0;
+  for(let i = minBin; i <= maxBin; i++){
+    sum += buf[i];
+    cnt++;
+  }
+
+  const floor = sum / cnt;
+  const thr = floor + 18; // moins agressif qu'avant
+
+  const peaks = [];
+  for(let i = minBin + 1; i < maxBin - 1; i++){
+    if(buf[i] > thr && buf[i] > buf[i - 1] && buf[i] > buf[i + 1]){
+      const a = buf[i - 1], b = buf[i], c = buf[i + 1];
+      const denom = (2 * (2 * b - a - c));
+      const shift = Math.abs(denom) > 1e-6 ? (c - a) / denom : 0;
+      const freq = (i + shift) * binHz;
+      if(freq >= 50 && freq <= 2200){
+        peaks.push({ freq, amp: b });
+      }
     }
   }
-  if(!peaks.length)return[];
+
+  if(!peaks.length) return [];
+
   peaks.sort((a,b)=>b.amp-a.amp);
-  const midis=[];
-  peaks.slice(0,6).forEach(p=>{
-    const m=freqToMidi(p.freq);
-    if(m<21||m>108)return;
-    const isH=midis.some(ex=>{
-      const diff=(m-ex+120)%12;
-      return diff===0||diff===7;
-    });
-    if(!isH)midis.push(m);
-  });
-  return midis;
+
+  const midis = [];
+  for(const p of peaks){
+    const m = freqToMidi(p.freq);
+    if(m < 21 || m > 108) continue;
+
+    // fusionne les doublons proches
+    const already = midis.some(ex => Math.abs(ex - m) <= 1);
+    if(already) continue;
+
+    midis.push(m);
+    if(midis.length >= MAX_DETECTED_NOTES) break;
+  }
+
+  return midis.sort((a,b)=>a-b);
 }
 
 async function startMic(){
   try{
-    micStream=await navigator.mediaDevices.getUserMedia({
-      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio:{
+        echoCancellation:false,
+        noiseSuppression:false,
+        autoGainControl:false
+      }
     });
-    micSource=audioCtx.createMediaStreamSource(micStream);
-    micAnalyser=audioCtx.createAnalyser();
-    micAnalyser.fftSize=8192;
-    micAnalyser.smoothingTimeConstant=0;
+
+    micSource = audioCtx.createMediaStreamSource(micStream);
+    micAnalyser = audioCtx.createAnalyser();
+    micAnalyser.fftSize = 16384;
+    micAnalyser.smoothingTimeConstant = 0.15;
+
     micSource.connect(micAnalyser);
     return true;
   }catch(e){
-    alert('Micro inaccessible : '+e.message);
+    alert('Micro inaccessible : ' + e.message);
     return false;
   }
 }
-
 function stopMic(){
   if(micSource)micSource.disconnect();
   if(micStream)micStream.getTracks().forEach(t=>t.stop());
@@ -629,26 +692,58 @@ function buildTutoNotes(){
     dur:Math.max(...g.notes.map(n=>n.dur))
   }));
 }
+function tutoPrev(){
+  if(!tutoMode || !tutoNotes.length) return;
+  jumpToTutoIndex(tutoNoteIndex - 1);
+}
+
+function tutoNext(){
+  if(!tutoMode || !tutoNotes.length) return;
+  jumpToTutoIndex(tutoNoteIndex + 1);
+}
 
 async function toggleTutoMode(){
-  if(tutoMode){stopTutoMode();return}
-  const ok=await startMic();
-  if(!ok)return;
-  tutoMode=true;
-  const btn=document.getElementById('tuto-toggle');
-  btn.textContent='⏹ Arrêter le Tuto';
-  btn.className='stop';
-  document.getElementById('tuto-bar').style.display='flex';
+  if(tutoMode){
+    stopTutoMode();
+    return;
+  }
+
+  await ensureSamplesLoaded();
+  const ok = await startMic();
+  if(!ok) return;
+
+  tutoMode = true;
+  tutoActive = true;
+  tutoWaiting = true;
+
+  const btn = document.getElementById('tuto-toggle');
+  btn.textContent = '⏹ Arrêter le Tuto';
+  btn.className = 'stop';
+
+  document.getElementById('tuto-bar').style.display = 'flex';
   document.getElementById('play-btn').classList.add('disabled');
+
   buildTutoNotes();
-  tutoNoteIndex=0;
-  tutoWaiting=false;
+  tutoNoteIndex = 0;
   clearScheduled();
-  currentTime=0;
-  lastTS=null;
-  playing=true;
-  document.getElementById('play-icon').textContent='⏸';
-  tutoActive=true;
+  playing = false;
+  lastTS = null;
+
+  jumpToTutoIndex(0);
+  updateTutoUI();
+  startFlash(tutoNotes[0]?.midis || []);
+}
+
+function jumpToTutoIndex(index){
+  if(!tutoNotes.length) return;
+
+  tutoNoteIndex = Math.max(0, Math.min(index, tutoNotes.length - 1));
+  const noteTime = tutoNotes[tutoNoteIndex].start + INTRO;
+  currentTime = noteTime;
+  lastTS = null;
+  clearScheduled();
+  stopFlash();
+  startFlash(tutoNotes[tutoNoteIndex].midis);
   updateTutoUI();
 }
 
@@ -700,54 +795,71 @@ function stopFlash(){
 }
 
 function tutoTick(){
-  if(!tutoMode||!tutoActive)return;
-  const n=tutoNotes[tutoNoteIndex];
-  if(!n)return;
-  const noteTime=n.start+INTRO;
-  if(!tutoWaiting){
-    if(currentTime>=noteTime-0.04){
-      playing=false;
-      document.getElementById('play-icon').textContent='▶';
-      currentTime=noteTime;
-      tutoWaiting=true;
-      updateTutoUI();
-      startFlash(n.midis);
+  if(!tutoMode || !tutoActive) return;
+
+  const n = tutoNotes[tutoNoteIndex];
+  if(!n) return;
+
+  const detected = detectChord();
+  const expected = n.midis;
+
+  if(detected.length > 0){
+    document.getElementById('tuto-detected').textContent =
+      detected.map(midiToName).join(', ');
+
+    const matched = expected.filter(em => detected.some(dm => Math.abs(dm - em) <= 1));
+    const ratio = matched.length / expected.length;
+    const pct = Math.round(ratio * 100);
+
+    document.getElementById('tuto-pitch-bar').style.width = pct + '%';
+    document.getElementById('tuto-pitch-bar').style.background =
+      ratio >= 1 ? '#4ade80' :
+      ratio >= MIN_MATCH_RATIO ? '#fbbf24' :
+      '#f87171';
+
+    const requiredMatches = expected.length >= 4
+      ? Math.max(3, Math.ceil(expected.length * MIN_MATCH_RATIO))
+      : expected.length;
+
+    if(matched.length >= requiredMatches){
+      document.getElementById('tuto-feedback').textContent = '✅';
+      document.getElementById('tuto-status').textContent = '✅ Parfait !';
+      document.getElementById('tuto-status').style.background = '#1a4a1a';
+      document.getElementById('tuto-status').style.borderColor = '#27ae60';
+
+      stopFlash();
+
+      setTimeout(() => {
+        if(!tutoMode) return;
+
+        if(tutoNoteIndex >= tutoNotes.length - 1){
+          document.getElementById('tuto-status').textContent = '🎉 Bravo !';
+          document.getElementById('tuto-status').style.background = '#1a4a1a';
+          document.getElementById('tuto-status').style.borderColor = '#27ae60';
+          document.getElementById('tuto-note').textContent = '🎉';
+          return;
+        }
+
+        jumpToTutoIndex(tutoNoteIndex + 1);
+      }, 120);
+    }else{
+      const missing = expected
+        .filter(em => !detected.some(dm => Math.abs(dm - em) <= 1))
+        .map(midiToName)
+        .join(', ');
+
+      document.getElementById('tuto-feedback').textContent = '❌';
+      document.getElementById('tuto-status').textContent = 'Manque : ' + missing;
+      document.getElementById('tuto-status').style.background = '#3a1a1a';
+      document.getElementById('tuto-status').style.borderColor = '#c0392b';
     }
   }else{
-    const detected=detectChord(),expected=n.midis;
-    if(detected.length>0){
-      document.getElementById('tuto-detected').textContent=detected.map(midiToName).join(', ');
-      const matched=expected.filter(em=>detected.some(dm=>dm===em));
-      const pct=Math.round(matched.length/expected.length*100);
-      document.getElementById('tuto-pitch-bar').style.width=pct+'%';
-      document.getElementById('tuto-pitch-bar').style.background=pct===100?'#4ade80':pct>=50?'#fbbf24':'#f87171';
-      if(matched.length===expected.length){
-        document.getElementById('tuto-feedback').textContent='✅';
-        document.getElementById('tuto-status').textContent='✅ Parfait !';
-        document.getElementById('tuto-status').style.background='#1a4a1a';
-        document.getElementById('tuto-status').style.borderColor='#27ae60';
-        stopFlash();
-        tutoWaiting=false;
-        tutoNoteIndex++;
-        setTimeout(()=>{
-          if(!tutoMode)return;
-          if(tutoNoteIndex>=tutoNotes.length){updateTutoUI();return}
-          updateTutoUI();
-          playing=true;
-          lastTS=null;
-          document.getElementById('play-icon').textContent='⏸';
-        },400);
-      }else{
-        const missing=expected.filter(em=>!detected.some(dm=>dm===em)).map(midiToName).join(', ');
-        document.getElementById('tuto-feedback').textContent='❌';
-        document.getElementById('tuto-status').textContent='Manque : '+missing;
-        document.getElementById('tuto-status').style.background='#3a1a1a';
-        document.getElementById('tuto-status').style.borderColor='#c0392b';
-      }
-    }else{
-      document.getElementById('tuto-pitch-bar').style.width='0%';
-      document.getElementById('tuto-detected').textContent='—';
-    }
+    document.getElementById('tuto-pitch-bar').style.width = '0%';
+    document.getElementById('tuto-detected').textContent = '—';
+    document.getElementById('tuto-feedback').textContent = '🎵';
+    document.getElementById('tuto-status').textContent = '⏳ En attente…';
+    document.getElementById('tuto-status').style.background = '#1a1a3a';
+    document.getElementById('tuto-status').style.borderColor = '#e67e22';
   }
 }
 
