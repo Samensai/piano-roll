@@ -19,28 +19,31 @@ body{
   display:flex;flex-direction:column;
 }
 
-/* Landscape: compact everything */
+/* Landscape: maximize roll space */
 @media(orientation:landscape){
   #status-bar{display:none!important}
   #app-header{display:none!important}
-  #player-nav{padding:4px 10px}
-  #player-nav .t{font-size:12px}
+  #player-nav{padding:2px 10px;border-bottom:none}
+  #player-nav .t{font-size:11px}
   #player-nav .c{display:none}
-  #ctrl-bar{padding:4px 10px}
-  #play-btn{width:28px;height:28px;border-radius:14px;font-size:12px}
-  #restart-btn{font-size:11px}
-  #time-lbl{font-size:9px;min-width:55px}
+  .legend-wrap{display:none!important}
+  #ctrl-bar{padding:2px 10px;gap:5px}
+  #play-btn{width:26px;height:26px;border-radius:13px;font-size:11px}
+  #restart-btn{font-size:10px;padding:2px 4px}
+  #time-lbl{font-size:8px;min-width:50px}
   #speed-lbl{display:none}
-  #speed-slider{width:32px}
+  #speed-slider{display:none}
   #vol-icon{display:none}
-  #vol-slider{width:28px}
-  #piano-wrap{height:60px!important}
-  #bottom-bar{padding:5px 10px;padding-bottom:calc(5px + env(safe-area-inset-bottom,0px))}
-  #tuto-toggle{padding:8px;font-size:13px}
-  #tuto-bar{padding:4px 10px}
-  #tuto-note{font-size:14px}
-  #tuto-status{font-size:10px;padding:2px 7px}
-  #tuto-feedback{font-size:14px}
+  #vol-slider{display:none}
+  #piano-wrap{height:55px!important}
+  #bottom-bar{padding:3px 10px;padding-bottom:calc(3px + env(safe-area-inset-bottom,0px))}
+  #tuto-toggle{padding:6px;font-size:12px}
+  #tuto-bar{padding:3px 10px;gap:5px}
+  #tuto-play-label{display:none}
+  #tuto-note{font-size:13px;min-width:24px}
+  #tuto-status{font-size:9px;padding:2px 6px;max-width:100px}
+  #tuto-detected{font-size:9px;min-width:28px}
+  #tuto-feedback{font-size:13px;min-width:18px}
 }
 
 /* ── Status bar ── */
@@ -347,7 +350,10 @@ let samplerReady=false;
 const SAMPLE_MAP={21:'A0',24:'C1',33:'A1',36:'C2',45:'A2',48:'C3',57:'A3',60:'C4',69:'A4',72:'C5',81:'A5',84:'C6',93:'A6',96:'C7',105:'A7',108:'C8'};
 const SAMP_URL='https://gleitz.github.io/midi-js-soundfonts/MusyngKite/acoustic_grand_piano-mp3/';
 
+let audioUnlocked=false;
 async function loadSamples(){
+  // On iOS, AudioContext must be created during a user gesture.
+  // We create it here but it may be suspended. We'll resume on first tap.
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();
   masterGain=audioCtx.createGain();masterGain.gain.value=0.7;
   const conv=audioCtx.createConvolver();
@@ -369,6 +375,13 @@ async function loadSamples(){
   document.getElementById('load-msg').textContent='Prêt !';
   await new Promise(r=>setTimeout(r,300));
   document.getElementById('loading-screen').style.display='none';
+}
+function ensureAudio(){
+  if(audioUnlocked)return;
+  if(!audioCtx)return;
+  audioCtx.resume().then(()=>{audioUnlocked=true});
+  // Play silent buffer to fully unlock on iOS
+  try{const b=audioCtx.createBuffer(1,1,audioCtx.sampleRate);const s=audioCtx.createBufferSource();s.buffer=b;s.connect(audioCtx.destination);s.start(0)}catch(e){}
 }
 function getNearestSample(m){let best=null,bd=999;for(const k of Object.keys(sampleBuffers)){const dist=Math.abs(parseInt(k)-m);if(dist<bd){bd=dist;best=parseInt(k)}}return best}
 function playSample(midi,when,dur){
@@ -537,7 +550,7 @@ function tutoTick(){
 // ═══════════════════════════════
 const MIDI_MIN=21,MIDI_MAX=108,TOTAL_KEYS=MIDI_MAX-MIDI_MIN+1;
 const FALL_SPEED=160,MASK_H=16,NOTE_GAP=2,INTRO=3;
-function getPianoH(){return window.innerWidth>window.innerHeight?60:90}
+function getPianoH(){return window.innerWidth>window.innerHeight?55:90}
 function isBlack(m){return[1,3,6,8,10].includes(m%12)}
 let _layout=null,_lw=0;
 function getLayout(w){
@@ -725,7 +738,7 @@ function showPlayer(){
     pianoCanvas=document.getElementById('piano-canvas');
     pianoCtx=pianoCanvas.getContext('2d');
     resize();
-    if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+    ensureAudio();
     if(animId)cancelAnimationFrame(animId);
     animId=requestAnimationFrame(liveLoop);
   },30);
@@ -760,14 +773,14 @@ function liveLoop(ts){
 
 function togglePlay(){
   if(tutoMode)return;
-  if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+  ensureAudio();
   playing=!playing;if(!playing)clearScheduled();
   document.getElementById('play-icon').textContent=playing?'⏸':'▶';
   if(playing)lastTS=null;
 }
 function doRestart(){
   if(tutoMode)return;
-  if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+  ensureAudio();
   clearScheduled();currentTime=0;lastTS=null;playing=true;
   document.getElementById('play-icon').textContent='⏸';
 }
@@ -818,21 +831,10 @@ async function init(){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
-  // iOS audio unlock: resume AudioContext on first user interaction
-  function unlockAudio(){
-    if(audioCtx&&audioCtx.state==='suspended'){
-      audioCtx.resume();
-      // Play a silent buffer to fully unlock
-      const b=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
-      const s=audioCtx.createBufferSource();s.buffer=b;
-      s.connect(audioCtx.destination);s.start(0);
-    }
-    document.removeEventListener('touchstart',unlockAudio);
-    document.removeEventListener('click',unlockAudio);
-  }
-  document.addEventListener('touchstart',unlockAudio,{once:true});
-  document.addEventListener('click',unlockAudio,{once:true});
 }
+// Global audio unlock on any user interaction
+document.addEventListener('touchstart',()=>ensureAudio(),{once:true});
+document.addEventListener('click',()=>ensureAudio(),{once:true});
 init();
 </script>
 </body>
