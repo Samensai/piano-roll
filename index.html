@@ -253,6 +253,7 @@ input[type=file]{display:none}
   </div>
   <div id="ctrl-bar">
     <div id="play-btn" onclick="togglePlay()"><span id="play-icon">▶</span></div>
+    <div id="test-audio-btn" onclick="testAudio()" style="font-size:12px;color:#4ade80;padding:6px 8px;cursor:pointer">Test</div>
     <div id="restart-btn" onclick="doRestart()">⏮</div>
     <div id="seek-bar" onclick="seekTo(event)"><div id="seek-fill"></div></div>
     <span id="time-lbl">0:00 / 0:00</span>
@@ -368,7 +369,13 @@ async function ensureSamplesLoaded() {
     audioLoadingPromise = loadSamples();
   }
 
-  await audioLoadingPromise;
+  try {
+    await audioLoadingPromise;
+  } catch (e) {
+    audioLoadingPromise = null;
+    alert('Chargement audio impossible : ' + e.message);
+    throw e;
+  }
 
   if (audioCtx && audioCtx.state === 'suspended') {
     await audioCtx.resume();
@@ -386,7 +393,12 @@ async function loadSamples(){
   loadMsg.textContent = 'Chargement des sons…';
 
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  await audioCtx.resume();
+
+  try {
+    await audioCtx.resume();
+  } catch (e) {
+    console.warn('resume() failed', e);
+  }
 
   masterGain = audioCtx.createGain();
   masterGain.gain.value = 0.7;
@@ -414,33 +426,47 @@ async function loadSamples(){
 
   const keys = Object.keys(SAMPLE_MAP);
   let loaded = 0;
+  let successCount = 0;
 
   const setBar = () => {
     const pct = Math.round((loaded / keys.length) * 100);
     loadBar.style.width = pct + '%';
-    loadMsg.textContent = 'Chargement des sons… ' + pct + '%';
+    loadMsg.textContent = `Chargement des sons… ${pct}%`;
   };
 
   setBar();
 
-  await Promise.all(keys.map(async midi => {
+  for (const midi of keys) {
+    const url = SAMP_URL + SAMPLE_MAP[midi] + '.mp3';
     try {
-      const resp = await fetch(SAMP_URL + SAMPLE_MAP[midi] + '.mp3');
+      const resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
       const arr = await resp.arrayBuffer();
-      sampleBuffers[parseInt(midi)] = await audioCtx.decodeAudioData(arr);
+      const decoded = await audioCtx.decodeAudioData(arr);
+      sampleBuffers[parseInt(midi)] = decoded;
+      successCount++;
+      console.log('sample ok', midi, url);
     } catch (e) {
-      console.warn('Sample fail', midi, SAMP_URL + SAMPLE_MAP[midi] + '.mp3', e);
+      console.error('sample fail', midi, url, e);
     }
+
     loaded++;
     setBar();
-  }));
+  }
+
+  console.log('samples loaded =', successCount, '/', keys.length, 'audioState =', audioCtx.state);
+
+  if (successCount === 0) {
+    loadingScreen.style.display = 'none';
+    throw new Error("Aucun sample audio n'a pu être chargé.");
+  }
 
   samplerReady = true;
   audioUnlocked = true;
-  loadMsg.textContent = 'Prêt !';
+  loadMsg.textContent = `Prêt ! (${successCount} samples)`;
 
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 400));
   loadingScreen.style.display = 'none';
 }
 async function ensureAudio(){
@@ -464,12 +490,36 @@ async function ensureAudio(){
   }
 }
 function getNearestSample(m){let best=null,bd=999;for(const k of Object.keys(sampleBuffers)){const dist=Math.abs(parseInt(k)-m);if(dist<bd){bd=dist;best=parseInt(k)}}return best}
-function playSample(midi,when,dur){
-  if(!samplerReady)return;const nm=getNearestSample(midi);if(!nm)return;const buf=sampleBuffers[nm];if(!buf)return;
-  const src=audioCtx.createBufferSource();src.buffer=buf;src.playbackRate.value=Math.pow(2,(midi-nm)/12);
-  const g=audioCtx.createGain();const relT=midi<48?1.4:0.8;
-  g.gain.setValueAtTime(0.9,when);g.gain.setValueAtTime(0.9,when+dur-0.05);g.gain.exponentialRampToValueAtTime(0.0001,when+dur+relT);
-  src.connect(g);g.connect(masterGain);src.start(when);src.stop(when+dur+relT+0.1);
+function playSample(midi, when, dur){
+  if (!samplerReady || !audioCtx || !masterGain) return;
+
+  const nm = getNearestSample(midi);
+  if (!nm) return;
+
+  const buf = sampleBuffers[nm];
+  if (!buf) {
+    console.warn('no buffer for midi', midi, 'nearest', nm);
+    return;
+  }
+
+  const safeDur = Math.max(dur, 0.08);
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = Math.pow(2, (midi - nm) / 12);
+
+  const g = audioCtx.createGain();
+  const relT = midi < 48 ? 1.4 : 0.8;
+
+  g.gain.setValueAtTime(0.9, when);
+  g.gain.setValueAtTime(0.9, when + Math.max(safeDur - 0.05, 0.02));
+  g.gain.exponentialRampToValueAtTime(0.0001, when + safeDur + relT);
+
+  src.connect(g);
+  g.connect(masterGain);
+
+  src.start(when);
+  src.stop(when + safeDur + relT + 0.1);
 }
 function scheduleAudio(){
   if(!samplerReady||!playing)return;
@@ -901,6 +951,15 @@ async function doRestart(){
   lastTS = null;
   playing = true;
   document.getElementById('play-icon').textContent = '⏸';
+}
+async function testAudio(){
+  await ensureSamplesLoaded();
+  await ensureAudio();
+
+  console.log('TEST audioCtx.state =', audioCtx?.state);
+  console.log('TEST buffers =', Object.keys(sampleBuffers));
+
+  playSample(60, audioCtx.currentTime + 0.05, 0.5);
 }
 function seekTo(e){
   if(tutoMode)return;clearScheduled();
