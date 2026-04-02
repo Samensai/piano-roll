@@ -205,9 +205,9 @@ input[type=file]{display:none}
     <p>Choisissez un morceau pour commencer</p>
   </div>
   <div id="lib-scroll">
-    <div class="section-label blue">Classiques</div>
-    <div id="builtin-list"></div>
-    <div class="section-label green">Mes morceaux</div>
+    <div class="section-label blue">Morceaux disponibles</div>
+    <div id="song-list"><div class="empty-msg">Chargement…</div></div>
+    <div class="section-label green">Mes imports</div>
     <div id="imported-list"></div>
     <div id="import-btn" onclick="document.getElementById('midi-input').click()">
       <span class="plus">＋</span>Importer un fichier .mid
@@ -607,20 +607,15 @@ let rollCanvas,pianoCanvas,rollCtx,pianoCtx;
 let importedSongs=[];
 let currentSong=null;
 
-const BUILTIN=[
-  {id:'fur-elise',title:'Lettre à Élise',composer:'Beethoven',difficulty:2,icon:'🎹'},
-  {id:'clair-de-lune',title:'Clair de Lune',composer:'Debussy',difficulty:3,icon:'🌙'},
-  {id:'gymnop1',title:'Gymnopédie No.1',composer:'Satie',difficulty:1,icon:'🍃'},
-  {id:'moonlight',title:'Sonate au Clair de Lune',composer:'Beethoven',difficulty:2,icon:'🌑'},
-  {id:'prelude-c',title:'Prélude en Do Majeur',composer:'Bach',difficulty:2,icon:'⛪'},
-  {id:'nocturne-op9',title:'Nocturne Op.9 No.2',composer:'Chopin',difficulty:3,icon:'🌃'},
-];
+let remoteSongs=[];
 const DIFF_LABEL=['','Débutant','Intermédiaire','Avancé'];
 
 function makeSongCard(song,imported){
   const div=document.createElement('div');div.className='song-card';
+  const icon=imported?'📄':(song.icon||'🎵');
+  const iconClass=imported?'imported':'builtin';
   div.innerHTML=`
-    <div class="song-icon ${imported?'imported':'builtin'}">${imported?'📄':song.icon}</div>
+    <div class="song-icon ${iconClass}">${icon}</div>
     <div class="song-info">
       <div class="song-title">${song.title}</div>
       <div class="song-composer">${song.composer||'Fichier importé'}</div>
@@ -628,22 +623,26 @@ function makeSongCard(song,imported){
     ${song.difficulty?`<span class="song-diff diff-${song.difficulty}">${DIFF_LABEL[song.difficulty]}</span>`:''}
     <span class="song-arrow">›</span>
   `;
-  div.onclick=()=>selectSong(song,imported);
+  div.onclick=(e)=>selectSong(song,imported,div);
   return div;
 }
 
 function renderLibrary(){
-  const bl=document.getElementById('builtin-list');bl.innerHTML='';
-  BUILTIN.forEach(s=>bl.appendChild(makeSongCard(s,false)));
+  const sl=document.getElementById('song-list');sl.innerHTML='';
+  if(remoteSongs.length===0){
+    sl.innerHTML='<div class="empty-msg">Aucun morceau dans la bibliothèque.<br>Ajoutez des fichiers MIDI dans le dossier <b>midi/</b> et mettez à jour <b>list.json</b>.</div>';
+  }else{
+    remoteSongs.forEach(s=>sl.appendChild(makeSongCard(s,false)));
+  }
   const il=document.getElementById('imported-list');il.innerHTML='';
   if(importedSongs.length===0){
-    il.innerHTML='<div class="empty-msg">Aucun morceau importé.<br>Ajoutez un fichier MIDI ci-dessous.</div>';
+    il.innerHTML='<div class="empty-msg">Aucun morceau importé.</div>';
   }else{
     importedSongs.forEach(s=>il.appendChild(makeSongCard(s,true)));
   }
 }
 
-async function selectSong(song,imported){
+async function selectSong(song,imported,card){
   if(imported){
     try{
       const data=await dbGet(song.id);
@@ -652,7 +651,21 @@ async function selectSong(song,imported){
       currentSong=song;showPlayer();
     }catch(e){alert('Erreur : '+e.message)}
   }else{
-    alert(`"${song.title}" — exemple de la bibliothèque.\n\nPour jouer ce morceau :\n1. Téléchargez le MIDI depuis freemidi.org ou bitmidi.com\n2. Importez-le via le bouton ＋`);
+    // Fetch MIDI from midi/ folder
+    card.style.opacity='0.6';card.style.pointerEvents='none';
+    try{
+      const resp=await fetch('./midi/'+song.file);
+      if(!resp.ok)throw new Error('Fichier introuvable ('+resp.status+')');
+      const buf=await resp.arrayBuffer();
+      const parsed=parseMidi(buf);
+      if(!parsed.length)throw new Error('Aucune note trouvée');
+      notes=parsed;
+      totalDuration=Math.max(...notes.map(n=>n.start+n.dur))+1;
+      currentSong=song;showPlayer();
+    }catch(e){
+      alert('Impossible de charger "'+song.title+'" :\n'+e.message+'\n\nVérifiez que le fichier midi/'+song.file+' existe dans le repo.');
+    }
+    card.style.opacity='1';card.style.pointerEvents='';
   }
 }
 
@@ -760,6 +773,21 @@ async function init(){
     const stored=localStorage.getItem('piano-tuto-imports');
     if(stored)importedSongs=JSON.parse(stored);
   }catch(e){}
+  // Load remote song catalog
+  try{
+    const resp=await fetch('./midi/list.json?t='+Date.now());
+    if(resp.ok){
+      const list=await resp.json();
+      remoteSongs=list.map(s=>({
+        id:'remote-'+s.file,
+        title:s.title||s.file.replace(/\.(mid|midi)$/i,''),
+        composer:s.composer||'',
+        difficulty:s.difficulty||0,
+        icon:s.icon||'🎵',
+        file:s.file
+      }));
+    }
+  }catch(e){console.warn('list.json non trouvé',e)}
   renderLibrary();
   await loadSamples();
   // Register service worker for PWA
