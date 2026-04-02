@@ -65,7 +65,8 @@ body{
 /* ── Loading ── */
 #loading-screen{
   position:fixed;inset:0;background:#0a0a1a;z-index:999;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px;
 }
 #loading-screen .icon{font-size:56px}
 #loading-screen .title{
@@ -351,37 +352,116 @@ const SAMPLE_MAP={21:'A0',24:'C1',33:'A1',36:'C2',45:'A2',48:'C3',57:'A3',60:'C4
 const SAMP_URL='https://gleitz.github.io/midi-js-soundfonts/MusyngKite/acoustic_grand_piano-mp3/';
 
 let audioUnlocked=false;
-async function loadSamples(){
-  // On iOS, AudioContext must be created during a user gesture.
-  // We create it here but it may be suspended. We'll resume on first tap.
-  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  masterGain=audioCtx.createGain();masterGain.gain.value=0.7;
-  const conv=audioCtx.createConvolver();
-  const irLen=audioCtx.sampleRate*2;
-  const ir=audioCtx.createBuffer(2,irLen,audioCtx.sampleRate);
-  for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,3)*0.5}
-  conv.buffer=ir;
-  const revGain=audioCtx.createGain();revGain.gain.value=0.15;
-  masterGain.connect(audioCtx.destination);
-  masterGain.connect(conv);conv.connect(revGain);revGain.connect(audioCtx.destination);
-  const keys=Object.keys(SAMPLE_MAP);let loaded=0;
-  const setBar=()=>{const pct=Math.round(loaded/keys.length*100);document.getElementById('load-bar').style.width=pct+'%';document.getElementById('load-msg').textContent='Chargement des sons… '+pct+'%'};
-  setBar();
-  await Promise.all(keys.map(async midi=>{
-    try{const resp=await fetch(SAMP_URL+SAMPLE_MAP[midi]+'.mp3');const arr=await resp.arrayBuffer();sampleBuffers[parseInt(midi)]=await audioCtx.decodeAudioData(arr)}catch(e){console.warn('Sample fail',midi)}
-    loaded++;setBar();
-  }));
-  samplerReady=true;
-  document.getElementById('load-msg').textContent='Prêt !';
-  await new Promise(r=>setTimeout(r,300));
-  document.getElementById('loading-screen').style.display='none';
+
+let audioLoadingPromise = null;
+
+async function ensureSamplesLoaded() {
+  if (samplerReady) {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+    audioUnlocked = true;
+    return;
+  }
+
+  if (!audioLoadingPromise) {
+    audioLoadingPromise = loadSamples();
+  }
+
+  await audioLoadingPromise;
+
+  if (audioCtx && audioCtx.state === 'suspended') {
+    await audioCtx.resume();
+  }
+
+  audioUnlocked = true;
 }
-function ensureAudio(){
-  if(audioUnlocked)return;
-  if(!audioCtx)return;
-  audioCtx.resume().then(()=>{audioUnlocked=true});
-  // Play silent buffer to fully unlock on iOS
-  try{const b=audioCtx.createBuffer(1,1,audioCtx.sampleRate);const s=audioCtx.createBufferSource();s.buffer=b;s.connect(audioCtx.destination);s.start(0)}catch(e){}
+async function loadSamples(){
+  const loadingScreen = document.getElementById('loading-screen');
+  const loadBar = document.getElementById('load-bar');
+  const loadMsg = document.getElementById('load-msg');
+
+  loadingScreen.style.display = 'flex';
+  loadBar.style.width = '0%';
+  loadMsg.textContent = 'Chargement des sons…';
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  await audioCtx.resume();
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.7;
+
+  const conv = audioCtx.createConvolver();
+  const irLen = audioCtx.sampleRate * 2;
+  const ir = audioCtx.createBuffer(2, irLen, audioCtx.sampleRate);
+
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c);
+    for (let i = 0; i < irLen; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 3) * 0.5;
+    }
+  }
+
+  conv.buffer = ir;
+
+  const revGain = audioCtx.createGain();
+  revGain.gain.value = 0.15;
+
+  masterGain.connect(audioCtx.destination);
+  masterGain.connect(conv);
+  conv.connect(revGain);
+  revGain.connect(audioCtx.destination);
+
+  const keys = Object.keys(SAMPLE_MAP);
+  let loaded = 0;
+
+  const setBar = () => {
+    const pct = Math.round((loaded / keys.length) * 100);
+    loadBar.style.width = pct + '%';
+    loadMsg.textContent = 'Chargement des sons… ' + pct + '%';
+  };
+
+  setBar();
+
+  await Promise.all(keys.map(async midi => {
+    try {
+      const resp = await fetch(SAMP_URL + SAMPLE_MAP[midi] + '.mp3');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const arr = await resp.arrayBuffer();
+      sampleBuffers[parseInt(midi)] = await audioCtx.decodeAudioData(arr);
+    } catch (e) {
+      console.warn('Sample fail', midi, SAMP_URL + SAMPLE_MAP[midi] + '.mp3', e);
+    }
+    loaded++;
+    setBar();
+  }));
+
+  samplerReady = true;
+  audioUnlocked = true;
+  loadMsg.textContent = 'Prêt !';
+
+  await new Promise(r => setTimeout(r, 300));
+  loadingScreen.style.display = 'none';
+}
+async function ensureAudio(){
+  if (!audioCtx) return;
+
+  if (audioCtx.state === 'suspended') {
+    await audioCtx.resume();
+  }
+
+  if (audioUnlocked) return;
+
+  try {
+    const b = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+    const s = audioCtx.createBufferSource();
+    s.buffer = b;
+    s.connect(audioCtx.destination);
+    s.start(0);
+    audioUnlocked = true;
+  } catch (e) {
+    console.warn('Audio unlock failed', e);
+  }
 }
 function getNearestSample(m){let best=null,bd=999;for(const k of Object.keys(sampleBuffers)){const dist=Math.abs(parseInt(k)-m);if(dist<bd){bd=dist;best=parseInt(k)}}return best}
 function playSample(midi,when,dur){
@@ -677,30 +757,46 @@ function renderLibrary(){
   }
 }
 
-async function selectSong(song,imported,card){
-  if(imported){
-    try{
-      const data=await dbGet(song.id);
-      if(!data){alert('Morceau introuvable. Veuillez le ré-importer.');return}
-      notes=data.notes;totalDuration=data.duration;
-      currentSong=song;showPlayer();
-    }catch(e){alert('Erreur : '+e.message)}
-  }else{
-    // Fetch MIDI from midi/ folder
-    card.style.opacity='0.6';card.style.pointerEvents='none';
-    try{
-      const resp=await fetch('./midi/'+song.file);
-      if(!resp.ok)throw new Error('Fichier introuvable ('+resp.status+')');
-      const buf=await resp.arrayBuffer();
-      const parsed=parseMidi(buf);
-      if(!parsed.length)throw new Error('Aucune note trouvée');
-      notes=parsed;
-      totalDuration=Math.max(...notes.map(n=>n.start+n.dur))+1;
-      currentSong=song;showPlayer();
-    }catch(e){
-      alert('Impossible de charger "'+song.title+'" :\n'+e.message+'\n\nVérifiez que le fichier midi/'+song.file+' existe dans le repo.');
+async function selectSong(song, imported, card){
+  if (card) {
+    card.style.opacity = '0.6';
+    card.style.pointerEvents = 'none';
+  }
+
+  try {
+    await ensureSamplesLoaded();
+
+    if (imported) {
+      const data = await dbGet(song.id);
+      if (!data) {
+        throw new Error('Morceau introuvable. Veuillez le ré-importer.');
+      }
+
+      notes = data.notes;
+      totalDuration = data.duration;
+      currentSong = song;
+      showPlayer();
+      return;
     }
-    card.style.opacity='1';card.style.pointerEvents='';
+
+    const resp = await fetch('./midi/' + song.file);
+    if (!resp.ok) throw new Error('Fichier introuvable (' + resp.status + ')');
+
+    const buf = await resp.arrayBuffer();
+    const parsed = parseMidi(buf);
+    if (!parsed.length) throw new Error('Aucune note trouvée');
+
+    notes = parsed;
+    totalDuration = Math.max(...notes.map(n => n.start + n.dur)) + 1;
+    currentSong = song;
+    showPlayer();
+  } catch (e) {
+    alert('Impossible de charger "' + song.title + '" :\n' + e.message);
+  } finally {
+    if (card) {
+      card.style.opacity = '1';
+      card.style.pointerEvents = '';
+    }
   }
 }
 
@@ -719,29 +815,39 @@ async function importMidi(file){
     localStorage.setItem('piano-tuto-imports',JSON.stringify(importedSongs));
     renderLibrary();
     // Auto-open
-    notes=parsed;totalDuration=dur;currentSong=meta;showPlayer();
+    notes=parsed;totalDuration=dur;currentSong=meta;await ensureSamplesLoaded();showPlayer();
   }catch(e){alert('Erreur : '+e.message)}
 }
 
 function showPlayer(){
-  document.getElementById('library-screen').style.display='none';
-  document.getElementById('player-screen').style.display='flex';
-  document.getElementById('p-title').textContent=currentSong.title;
-  document.getElementById('p-composer').textContent=currentSong.composer||'Fichier importé';
-  currentTime=0;playing=true;lastTS=null;speed=1;
-  document.getElementById('speed-slider').value=1;
-  document.getElementById('speed-lbl').textContent='×1.0';
-  document.getElementById('play-icon').textContent='⏸';
-  setTimeout(()=>{
-    rollCanvas=document.getElementById('roll-canvas');
-    rollCtx=rollCanvas.getContext('2d',{alpha:false});
-    pianoCanvas=document.getElementById('piano-canvas');
-    pianoCtx=pianoCanvas.getContext('2d');
+  console.log('showPlayer → audioCtx state =', audioCtx?.state, 'samplerReady =', samplerReady);
+
+  document.getElementById('library-screen').style.display = 'none';
+  document.getElementById('player-screen').style.display = 'flex';
+  document.getElementById('p-title').textContent = currentSong.title;
+  document.getElementById('p-composer').textContent = currentSong.composer || 'Fichier importé';
+
+  currentTime = 0;
+  playing = true;
+  lastTS = null;
+  speed = 1;
+
+  document.getElementById('speed-slider').value = 1;
+  document.getElementById('speed-lbl').textContent = '×1.0';
+  document.getElementById('play-icon').textContent = '⏸';
+
+  setTimeout(async () => {
+    rollCanvas = document.getElementById('roll-canvas');
+    rollCtx = rollCanvas.getContext('2d', { alpha:false });
+    pianoCanvas = document.getElementById('piano-canvas');
+    pianoCtx = pianoCanvas.getContext('2d');
+
     resize();
-    ensureAudio();
-    if(animId)cancelAnimationFrame(animId);
-    animId=requestAnimationFrame(liveLoop);
-  },30);
+    await ensureAudio();
+
+    if (animId) cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(liveLoop);
+  }, 30);
 }
 
 function goLibrary(){
@@ -771,18 +877,30 @@ function liveLoop(ts){
   animId=requestAnimationFrame(liveLoop);
 }
 
-function togglePlay(){
-  if(tutoMode)return;
-  ensureAudio();
-  playing=!playing;if(!playing)clearScheduled();
-  document.getElementById('play-icon').textContent=playing?'⏸':'▶';
-  if(playing)lastTS=null;
+async function togglePlay(){
+  if (tutoMode) return;
+
+  await ensureAudio();
+
+  playing = !playing;
+  if (!playing) clearScheduled();
+
+  document.getElementById('play-icon').textContent = playing ? '⏸' : '▶';
+
+  if (playing) lastTS = null;
+
+  console.log('togglePlay → audioCtx state =', audioCtx?.state, 'samplerReady =', samplerReady);
 }
-function doRestart(){
-  if(tutoMode)return;
-  ensureAudio();
-  clearScheduled();currentTime=0;lastTS=null;playing=true;
-  document.getElementById('play-icon').textContent='⏸';
+async function doRestart(){
+  if (tutoMode) return;
+
+  await ensureAudio();
+
+  clearScheduled();
+  currentTime = 0;
+  lastTS = null;
+  playing = true;
+  document.getElementById('play-icon').textContent = '⏸';
 }
 function seekTo(e){
   if(tutoMode)return;clearScheduled();
@@ -805,31 +923,35 @@ window.addEventListener('resize',resize);
 // ═══════════════════════════════
 async function init(){
   await openDB();
-  // Restore imported songs list
-  try{
-    const stored=localStorage.getItem('piano-tuto-imports');
-    if(stored)importedSongs=JSON.parse(stored);
-  }catch(e){}
-  // Load remote song catalog
-  try{
-    const resp=await fetch('./midi/list.json?t='+Date.now());
-    if(resp.ok){
-      const list=await resp.json();
-      remoteSongs=list.map(s=>({
-        id:'remote-'+s.file,
-        title:s.title||s.file.replace(/\.(mid|midi)$/i,''),
-        composer:s.composer||'',
-        difficulty:s.difficulty||0,
-        icon:s.icon||'🎵',
-        file:s.file
+
+  try {
+    const stored = localStorage.getItem('piano-tuto-imports');
+    if (stored) importedSongs = JSON.parse(stored);
+  } catch (e) {}
+
+  try {
+    const resp = await fetch('./midi/list.json?t=' + Date.now());
+    if (resp.ok) {
+      const list = await resp.json();
+      remoteSongs = list.map(s => ({
+        id: 'remote-' + s.file,
+        title: s.title || s.file.replace(/\.(mid|midi)$/i, ''),
+        composer: s.composer || '',
+        difficulty: s.difficulty || 0,
+        icon: s.icon || '🎵',
+        file: s.file
       }));
     }
-  }catch(e){console.warn('list.json non trouvé',e)}
+  } catch (e) {
+    console.warn('list.json non trouvé', e);
+  }
+
   renderLibrary();
-  await loadSamples();
-  // Register service worker for PWA
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+  document.getElementById('loading-screen').style.display = 'none';
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
 }
 // Global audio unlock on any user interaction
