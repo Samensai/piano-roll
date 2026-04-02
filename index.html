@@ -17,10 +17,31 @@ body{
   background:#0a0a1a;color:#e8e8f0;
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
   display:flex;flex-direction:column;
-  max-width:480px;margin:0 auto;
-  border-left:1px solid #1a1a35;border-right:1px solid #1a1a35;
 }
-@media(min-width:481px){body{height:100vh}}
+
+/* Landscape: compact everything */
+@media(orientation:landscape){
+  #status-bar{display:none!important}
+  #app-header{display:none!important}
+  #player-nav{padding:4px 10px}
+  #player-nav .t{font-size:12px}
+  #player-nav .c{display:none}
+  #ctrl-bar{padding:4px 10px}
+  #play-btn{width:28px;height:28px;border-radius:14px;font-size:12px}
+  #restart-btn{font-size:11px}
+  #time-lbl{font-size:9px;min-width:55px}
+  #speed-lbl{display:none}
+  #speed-slider{width:32px}
+  #vol-icon{display:none}
+  #vol-slider{width:28px}
+  #piano-wrap{height:60px!important}
+  #bottom-bar{padding:5px 10px;padding-bottom:calc(5px + env(safe-area-inset-bottom,0px))}
+  #tuto-toggle{padding:8px;font-size:13px}
+  #tuto-bar{padding:4px 10px}
+  #tuto-note{font-size:14px}
+  #tuto-status{font-size:10px;padding:2px 7px}
+  #tuto-feedback{font-size:14px}
+}
 
 /* ── Status bar ── */
 #status-bar{
@@ -515,7 +536,8 @@ function tutoTick(){
 // RENDERER
 // ═══════════════════════════════
 const MIDI_MIN=21,MIDI_MAX=108,TOTAL_KEYS=MIDI_MAX-MIDI_MIN+1;
-const PIANO_H=90,FALL_SPEED=160,MASK_H=16,NOTE_GAP=2,INTRO=3;
+const FALL_SPEED=160,MASK_H=16,NOTE_GAP=2,INTRO=3;
+function getPianoH(){return window.innerWidth>window.innerHeight?60:90}
 function isBlack(m){return[1,3,6,8,10].includes(m%12)}
 let _layout=null,_lw=0;
 function getLayout(w){
@@ -547,7 +569,7 @@ function drawNote(ctx,x,y,w,h,color,glow){
 }
 
 function drawScene(t,w,rh){
-  const L=getLayout(w),pps=FALL_SPEED,ph=PIANO_H;
+  const L=getLayout(w),pps=FALL_SPEED,ph=getPianoH();
   rollCtx.fillStyle='#0c0c1e';rollCtx.fillRect(0,0,w,rh);
   for(let i=0;i<TOTAL_KEYS;i++){if(L[i]&&L[i].black){rollCtx.fillStyle='rgba(0,0,0,.22)';rollCtx.fillRect(L[i].x,0,L[i].w,rh)}}
   rollCtx.strokeStyle='rgba(255,255,255,.035)';rollCtx.lineWidth=1;
@@ -756,10 +778,12 @@ function seekTo(e){
 }
 function resize(){
   if(!rollCanvas)return;_layout=null;
+  const ph=getPianoH();
+  document.getElementById('piano-wrap').style.height=ph+'px';
   rollCanvas.width=rollCanvas.parentElement.clientWidth;
   rollCanvas.height=rollCanvas.parentElement.clientHeight;
   pianoCanvas.width=pianoCanvas.parentElement.clientWidth;
-  pianoCanvas.height=PIANO_H;
+  pianoCanvas.height=ph;
 }
 window.addEventListener('resize',resize);
 
@@ -794,6 +818,20 @@ async function init(){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
+  // iOS audio unlock: resume AudioContext on first user interaction
+  function unlockAudio(){
+    if(audioCtx&&audioCtx.state==='suspended'){
+      audioCtx.resume();
+      // Play a silent buffer to fully unlock
+      const b=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
+      const s=audioCtx.createBufferSource();s.buffer=b;
+      s.connect(audioCtx.destination);s.start(0);
+    }
+    document.removeEventListener('touchstart',unlockAudio);
+    document.removeEventListener('click',unlockAudio);
+  }
+  document.addEventListener('touchstart',unlockAudio,{once:true});
+  document.addEventListener('click',unlockAudio,{once:true});
 }
 init();
 </script>
