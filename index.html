@@ -867,13 +867,12 @@ async function toggleTutoMode(){
 function jumpToTutoIndex(index){
   if(!tutoNotes.length)return;
   tutoNoteIndex=Math.max(0,Math.min(index,tutoNotes.length-1));
+  // note.start est en temps musical. currentTime inclut INTRO.
+  // yB = rollH - (note.start + INTRO - currentTime)*FALL_SPEED
+  // Pour yB = rollH (note au bas du roll) → currentTime = note.start + INTRO
+  // Mais la tuto bar au dessus réduit le roll, donc on ajuste avec un petit offset fixe
   const noteTime=tutoNotes[tutoNoteIndex].start+INTRO;
-  // La note est trop haute quand currentTime=noteTime → on avance
-  // pour la faire descendre visuellement vers le clavier.
-  // rollH/FALL_SPEED = durée totale visible dans le roll.
-  // On avance de cette durée complète pour que la note soit pile en bas.
-  const rollH=rollCanvas?rollCanvas.height:600;
-  currentTime=noteTime+(rollH/FALL_SPEED);
+  currentTime=Math.max(0, noteTime-0.5);
   lastTS=null;clearScheduled();
   stopFlash();startFlash(tutoNotes[tutoNoteIndex].midis);
   updateTutoUI();
