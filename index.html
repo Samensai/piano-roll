@@ -189,6 +189,37 @@ body{
 
 #new-composer-wrap{display:none}
 
+/* Song card edit button */
+.song-edit-btn{
+  width:30px;height:30px;border-radius:8px;border:none;
+  background:#1a1a35;color:#5a5a7a;font-size:18px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;line-height:1;
+  transition:background .15s,color .15s;
+}
+.song-edit-btn:active{background:#252545;color:#a0c4ff}
+
+/* Edit modal */
+#edit-modal{
+  position:fixed;inset:0;z-index:300;
+  display:none;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
+}
+#edit-modal.open{display:flex}
+#edit-sheet{
+  width:100%;max-width:500px;
+  background:#0e0e22;border-radius:24px 24px 0 0;
+  border:1px solid #252545;border-bottom:none;
+  padding:24px 20px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:14px;
+  animation:slideUp .3s ease;
+}
+#edit-sheet h2{font-size:18px;font-weight:800;text-align:center}
+.modal-btn.delete{
+  background:linear-gradient(135deg,#3a0a0a,#5a0f0f);
+  color:#f87171;border:1px solid #7a1f1f;
+}
+
 /* Player */
 #player-screen{flex:1;display:none;flex-direction:column;overflow:hidden}
 #player-nav{
@@ -338,6 +369,51 @@ input[type=file]{display:none}
       <button class="modal-btn cancel" onclick="closeImportModal()">Annuler</button>
       <button class="modal-btn confirm" onclick="confirmImport()">Ajouter ›</button>
     </div>
+  </div>
+</div>
+
+<!-- Edit Modal (morceaux importés) -->
+<div id="edit-modal">
+  <div id="edit-sheet">
+    <h2>✏️ Modifier le morceau</h2>
+
+    <div class="modal-field">
+      <label>Titre</label>
+      <input type="text" id="edit-title" placeholder="Titre du morceau">
+    </div>
+
+    <div class="modal-field">
+      <label>Compositeur</label>
+      <select id="edit-composer-select" onchange="onEditComposerChange(this.value)">
+        <option value="">— Choisir —</option>
+      </select>
+    </div>
+
+    <div class="modal-field" id="edit-new-composer-wrap" style="display:none">
+      <label>Nom du nouveau compositeur</label>
+      <input type="text" id="edit-composer-new" placeholder="Ex: Mozart">
+    </div>
+
+    <div class="modal-field">
+      <label>Difficulté</label>
+      <select id="edit-difficulty">
+        <option value="0">Non définie</option>
+        <option value="1">Débutant</option>
+        <option value="2">Intermédiaire</option>
+        <option value="3">Avancé</option>
+      </select>
+    </div>
+
+    <div class="modal-field">
+      <label>Icône</label>
+      <div class="emoji-grid" id="edit-emoji-grid"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-btn delete" onclick="deleteImportedSong()">🗑 Supprimer</button>
+      <button class="modal-btn confirm" onclick="confirmEdit()">Enregistrer ›</button>
+    </div>
+    <button class="modal-btn cancel" style="text-align:center" onclick="closeEditModal()">Annuler</button>
   </div>
 </div>
 
@@ -1011,6 +1087,10 @@ function makeSongCard(song){
   const div=document.createElement('div');
   div.className='song-card';
   const iconClass=song._imported?'imported':'builtin';
+
+  // Bouton édition uniquement pour les morceaux importés
+  const editBtn=song._imported?`<button class="song-edit-btn" title="Modifier">⋯</button>`:'';
+
   div.innerHTML=`
     <div class="song-icon ${iconClass}">${song.icon||'🎵'}</div>
     <div class="song-info">
@@ -1018,8 +1098,18 @@ function makeSongCard(song){
       <div class="song-composer">${song.composer||''}</div>
     </div>
     ${song.difficulty?`<span class="song-diff diff-${song.difficulty}">${DIFF_LABEL[song.difficulty]}</span>`:''}
+    ${editBtn}
     <span class="song-arrow">›</span>
   `;
+
+  // Bouton édition : ouvre le modal sans déclencher le lecteur
+  if(song._imported){
+    div.querySelector('.song-edit-btn').addEventListener('click',e=>{
+      e.stopPropagation();
+      openEditModal(song);
+    });
+  }
+
   div.onclick=()=>selectSong(song,song._imported,div);
   return div;
 }
@@ -1044,18 +1134,19 @@ function renderLibrary(){
       <div class="composer-avatar">${comp.icon}</div>
       <div class="composer-name">${comp.name}</div>
       <div class="composer-count">${comp.songs.length} morceau${comp.songs.length>1?'x':''}</div>
-      <div class="composer-chevron open">›</div>
+      <div class="composer-chevron">›</div>
     `;
 
     const songsDiv=document.createElement('div');
-    songsDiv.className='composer-songs';
+    songsDiv.className='composer-songs collapsed';
+    songsDiv.style.maxHeight='0px';
 
     comp.songs.forEach(s=>songsDiv.appendChild(makeSongCard(s)));
 
     // Calcul de la hauteur initiale pour la transition
     header.onclick=()=>{
       const chevron=header.querySelector('.composer-chevron');
-      const isOpen=!songsDiv.classList.contains('collapsed');
+      const isOpen=chevron.classList.contains('open');
       if(isOpen){
         songsDiv.style.maxHeight=songsDiv.scrollHeight+'px';
         requestAnimationFrame(()=>{
@@ -1183,8 +1274,136 @@ async function confirmImport(){
 }
 
 // ═══════════════════════════════════════════════════
-// PLAYER — FIX changement de morceau
+// EDIT MODAL
 // ═══════════════════════════════════════════════════
+let editingSong=null;
+let editSelectedEmoji='🎵';
+
+function openEditModal(song){
+  editingSong=song;
+  editSelectedEmoji=song.icon||'🎵';
+
+  document.getElementById('edit-title').value=song.title||'';
+  document.getElementById('edit-difficulty').value=song.difficulty||0;
+  document.getElementById('edit-new-composer-wrap').style.display='none';
+
+  // Remplir le select des compositeurs
+  const sel=document.getElementById('edit-composer-select');
+  sel.innerHTML='<option value="">— Choisir —</option>';
+  const existing=new Set();
+  remoteSongs.forEach(s=>{if(s.composer)existing.add(s.composer)});
+  importedSongs.forEach(s=>{if(s.composer)existing.add(s.composer)});
+  [...existing].sort().forEach(c=>{
+    const opt=document.createElement('option');
+    opt.value=c;opt.textContent=c;
+    if(c===song.composer)opt.selected=true;
+    sel.appendChild(opt);
+  });
+  const newOpt=document.createElement('option');
+  newOpt.value='__new__';newOpt.textContent='+ Nouveau compositeur…';
+  sel.appendChild(newOpt);
+
+  // Grille emoji
+  const grid=document.getElementById('edit-emoji-grid');
+  grid.innerHTML='';
+  EMOJI_OPTIONS.forEach(e=>{
+    const btn=document.createElement('div');
+    btn.className='emoji-btn'+(e===editSelectedEmoji?' selected':'');
+    btn.textContent=e;
+    btn.onclick=()=>{
+      editSelectedEmoji=e;
+      grid.querySelectorAll('.emoji-btn').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function onEditComposerChange(val){
+  document.getElementById('edit-new-composer-wrap').style.display=val==='__new__'?'block':'none';
+}
+
+function closeEditModal(){
+  document.getElementById('edit-modal').classList.remove('open');
+  editingSong=null;
+}
+
+function confirmEdit(){
+  if(!editingSong)return;
+  const title=document.getElementById('edit-title').value.trim();
+  if(!title){alert('Veuillez saisir un titre.');return}
+
+  const compSel=document.getElementById('edit-composer-select').value;
+  let composer='';
+  if(compSel==='__new__'){
+    composer=document.getElementById('edit-composer-new').value.trim();
+    if(!composer){alert('Veuillez saisir le nom du compositeur.');return}
+  }else if(compSel){
+    composer=compSel;
+  }
+
+  const difficulty=parseInt(document.getElementById('edit-difficulty').value);
+
+  // Mettre à jour dans le tableau
+  const idx=importedSongs.findIndex(s=>s.id===editingSong.id);
+  if(idx<0)return;
+  importedSongs[idx]={...importedSongs[idx],title,composer,difficulty,icon:editSelectedEmoji};
+  localStorage.setItem('piano-tuto-imports',JSON.stringify(importedSongs));
+
+  closeEditModal();
+  renderLibrary();
+}
+
+async function deleteImportedSong(){
+  if(!editingSong)return;
+  if(!confirm(`Supprimer "${editingSong.title}" ? Cette action est irréversible.`))return;
+
+  await dbDel(editingSong.id);
+  importedSongs=importedSongs.filter(s=>s.id!==editingSong.id);
+  localStorage.setItem('piano-tuto-imports',JSON.stringify(importedSongs));
+
+  closeEditModal();
+  renderLibrary();
+}
+
+// ═══════════════════════════════════════════════════
+// FIX AUDIO EN ARRIÈRE-PLAN
+// Quand le navigateur mobile suspend l'app (écran verrouillé,
+// changement d'app…), l'AudioContext passe en "suspended".
+// On le relance automatiquement au retour au premier plan.
+// ═══════════════════════════════════════════════════
+function handleVisibilityChange(){
+  if(document.visibilityState==='visible'){
+    if(audioCtx&&audioCtx.state==='suspended'){
+      audioCtx.resume().then(()=>{
+        audioUnlocked=true;
+        // Vider le cache de scheduling : les notes planifiées
+        // avant la suspension ont des timestamps périmés
+        clearScheduled();
+        // Réinitialiser lastTS pour éviter un saut de temps brutal
+        lastTS=null;
+      }).catch(e=>console.warn('AudioContext resume failed',e));
+    }
+  }else{
+    // App part en arrière-plan : vider le scheduling
+    // pour éviter que des notes périmées soient rejouées au retour
+    clearScheduled();
+    lastTS=null;
+  }
+}
+document.addEventListener('visibilitychange',handleVisibilityChange);
+// iOS PWA : pageshow se déclenche aussi au retour depuis le cache BFCache
+window.addEventListener('pageshow',e=>{
+  if(e.persisted)handleVisibilityChange();
+});
+// Focus (desktop + certains navigateurs mobiles)
+window.addEventListener('focus',()=>{
+  if(audioCtx&&audioCtx.state==='suspended'){
+    audioCtx.resume().then(()=>{audioUnlocked=true;clearScheduled();lastTS=null;});
+  }
+});
 async function selectSong(song,imported,card){
   if(card){card.style.opacity='0.6';card.style.pointerEvents='none'}
   try{
