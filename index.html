@@ -969,7 +969,7 @@ function tutoTick(){
 // RENDERER
 // ═══════════════════════════════════════════════════
 const MIDI_MIN=21,MIDI_MAX=108,TOTAL_KEYS=MIDI_MAX-MIDI_MIN+1;
-const FALL_SPEED=80,MASK_H=16,NOTE_GAP=2,INTRO=6;
+const FALL_SPEED=80,MASK_H=16,NOTE_GAP=2,INTRO=2;
 function getPianoH(){return window.innerWidth>window.innerHeight?55:90}
 let _layout=null,_lw=0;
 
@@ -1037,7 +1037,7 @@ function drawScene(t,w,rh){
     const right=n.hand==='right';
     let color=right?'#4a9fff':'#27ae60',glow=right?'rgba(74,159,255,.7)':'rgba(39,174,96,.7)';
     if(tutoMode&&tm.includes(n.midi)){color='#ffdd57';glow='rgba(255,221,87,.9)'}
-    drawNote(rollCtx,k.x+1,yT,k.w-2,Math.max(Math.min(yB-yT, FALL_SPEED*0.28),8),color,glow);
+    drawNote(rollCtx,k.x+1,yT,k.w-2,Math.max(yB-yT,4),color,glow);
     if(nt<=t+.02&&nt+n.dur>=t)active[n.midi]=n.hand;
   });
   rollCtx.shadowBlur=0;rollCtx.restore();
