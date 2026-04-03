@@ -532,11 +532,10 @@ function parseMidi(buf){
 }
 
 // ═══════════════════════════════════════════════════
-// AUDIO ENGINE — FIX: reset total entre morceaux
+// AUDIO ENGINE — recrée l'AudioContext à chaque morceau
 // ═══════════════════════════════════════════════════
 let audioCtx=null,masterGain=null;
 const sampleBuffers={};
-// FIX: scheduledKeys est réinitialisé à chaque morceau
 let scheduledKeys={};
 let samplerReady=false;
 let audioUnlocked=false;
@@ -548,7 +547,12 @@ const SAMPLE_MAP={
 };
 const SAMP_URL='./samples/';
 
-async function loadSamples(){
+// Fetch brut des mp3 en mémoire une seule fois (ArrayBuffer)
+const rawSampleBuffers={};
+let rawSamplesLoaded=false;
+let rawLoadingPromise=null;
+
+async function loadRawSamples(){
   const loadingScreen=document.getElementById('loading-screen');
   const loadBar=document.getElementById('load-bar');
   const loadMsg=document.getElementById('load-msg');
@@ -556,8 +560,54 @@ async function loadSamples(){
   loadBar.style.width='0%';
   loadMsg.textContent='Chargement des sons…';
 
+  const keys=Object.keys(SAMPLE_MAP);
+  let loaded=0,successCount=0;
+  const setBar=()=>{
+    const pct=Math.round((loaded/keys.length)*100);
+    loadBar.style.width=pct+'%';
+    loadMsg.textContent='Chargement des sons… '+pct+'%';
+  };
+  setBar();
+
+  for(const midi of keys){
+    try{
+      const resp=await fetch(SAMP_URL+SAMPLE_MAP[midi]+'.mp3',{cache:'force-cache'});
+      if(!resp.ok)throw new Error('HTTP '+resp.status);
+      rawSampleBuffers[parseInt(midi)]=await resp.arrayBuffer();
+      successCount++;
+    }catch(e){console.warn('Sample fetch fail',midi,e)}
+    loaded++;setBar();
+  }
+
+  if(successCount===0){
+    loadingScreen.style.display='none';
+    throw new Error("Aucun sample audio n'a pu être chargé.");
+  }
+  rawSamplesLoaded=true;
+  loadMsg.textContent='Prêt !';
+  await new Promise(r=>setTimeout(r,300));
+  loadingScreen.style.display='none';
+}
+
+async function ensureRawSamples(){
+  if(rawSamplesLoaded)return;
+  if(!rawLoadingPromise)rawLoadingPromise=loadRawSamples();
+  try{await rawLoadingPromise}
+  catch(e){rawLoadingPromise=null;alert('Chargement audio impossible : '+e.message);throw e}
+}
+
+// Appelé à chaque lancement de morceau : recrée AudioContext + décode les samples
+async function buildAudioContext(){
+  // Fermer l'ancien contexte proprement
+  if(audioCtx){
+    try{await audioCtx.close()}catch(e){}
+    audioCtx=null;masterGain=null;
+  }
+  samplerReady=false;audioUnlocked=false;
+  clearScheduled();
+
   audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  try{await audioCtx.resume()}catch(e){console.warn('resume failed',e)}
+  await audioCtx.resume();
 
   masterGain=audioCtx.createGain();
   masterGain.gain.value=0.7;
@@ -570,55 +620,36 @@ async function loadSamples(){
     for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,3)*0.5;
   }
   conv.buffer=ir;
-  const revGain=audioCtx.createGain();
-  revGain.gain.value=0.15;
+  const revGain=audioCtx.createGain();revGain.gain.value=0.15;
   masterGain.connect(audioCtx.destination);
-  masterGain.connect(conv);
-  conv.connect(revGain);
-  revGain.connect(audioCtx.destination);
+  masterGain.connect(conv);conv.connect(revGain);revGain.connect(audioCtx.destination);
 
-  const keys=Object.keys(SAMPLE_MAP);
-  let loaded=0,successCount=0;
-  const setBar=()=>{const pct=Math.round((loaded/keys.length)*100);loadBar.style.width=pct+'%';loadMsg.textContent='Chargement des sons… '+pct+'%'};
-  setBar();
-
-  for(const midi of keys){
+  // Décoder les ArrayBuffers (copie nécessaire car decodeAudioData consomme le buffer)
+  for(const midi of Object.keys(rawSampleBuffers)){
     try{
-      const resp=await fetch(SAMP_URL+SAMPLE_MAP[midi]+'.mp3',{cache:'no-store'});
-      if(!resp.ok)throw new Error('HTTP '+resp.status);
-      const arr=await resp.arrayBuffer();
-      sampleBuffers[parseInt(midi)]=await audioCtx.decodeAudioData(arr);
-      successCount++;
-    }catch(e){console.warn('Sample fail',midi,e)}
-    loaded++;setBar();
+      const copy=rawSampleBuffers[parseInt(midi)].slice(0);
+      sampleBuffers[parseInt(midi)]=await audioCtx.decodeAudioData(copy);
+    }catch(e){console.warn('Decode fail',midi,e)}
   }
-  if(successCount===0){loadingScreen.style.display='none';throw new Error("Aucun sample audio n'a pu être chargé.")}
+
   samplerReady=true;audioUnlocked=true;
-  loadMsg.textContent='Prêt !';
-  await new Promise(r=>setTimeout(r,300));
-  loadingScreen.style.display='none';
 }
 
 async function ensureSamplesLoaded(){
-  if(samplerReady){
-    if(audioCtx&&audioCtx.state==='suspended')await audioCtx.resume();
-    audioUnlocked=true;return;
+  await ensureRawSamples();
+  // Si pas de contexte encore, on le crée
+  if(!audioCtx||audioCtx.state==='closed'){
+    await buildAudioContext();
+  } else if(audioCtx.state==='suspended'){
+    await audioCtx.resume();
+    audioUnlocked=true;
   }
-  if(!audioLoadingPromise)audioLoadingPromise=loadSamples();
-  try{await audioLoadingPromise}catch(e){audioLoadingPromise=null;alert('Chargement audio impossible : '+e.message);throw e}
-  if(audioCtx&&audioCtx.state==='suspended')await audioCtx.resume();
-  audioUnlocked=true;
 }
 
 async function ensureAudio(){
-  if(!audioCtx)return;
+  if(!audioCtx||audioCtx.state==='closed')return;
   if(audioCtx.state==='suspended')await audioCtx.resume();
-  if(audioUnlocked)return;
-  try{
-    const b=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
-    const s=audioCtx.createBufferSource();s.buffer=b;s.connect(audioCtx.destination);s.start(0);
-    audioUnlocked=true;
-  }catch(e){console.warn('Audio unlock failed',e)}
+  audioUnlocked=true;
 }
 
 function getNearestSample(m){
@@ -938,7 +969,7 @@ function tutoTick(){
 // RENDERER
 // ═══════════════════════════════════════════════════
 const MIDI_MIN=21,MIDI_MAX=108,TOTAL_KEYS=MIDI_MAX-MIDI_MIN+1;
-const FALL_SPEED=80,MASK_H=16,NOTE_GAP=2,INTRO=3;
+const FALL_SPEED=80,MASK_H=16,NOTE_GAP=2,INTRO=6;
 function getPianoH(){return window.innerWidth>window.innerHeight?55:90}
 let _layout=null,_lw=0;
 
@@ -1006,7 +1037,7 @@ function drawScene(t,w,rh){
     const right=n.hand==='right';
     let color=right?'#4a9fff':'#27ae60',glow=right?'rgba(74,159,255,.7)':'rgba(39,174,96,.7)';
     if(tutoMode&&tm.includes(n.midi)){color='#ffdd57';glow='rgba(255,221,87,.9)'}
-    drawNote(rollCtx,k.x+1,yT,k.w-2,Math.max(yB-yT,18),color,glow);
+    drawNote(rollCtx,k.x+1,yT,k.w-2,Math.max(Math.min(yB-yT, FALL_SPEED*0.28),8),color,glow);
     if(nt<=t+.02&&nt+n.dur>=t)active[n.midi]=n.hand;
   });
   rollCtx.shadowBlur=0;rollCtx.restore();
@@ -1376,19 +1407,12 @@ async function deleteImportedSong(){
 // ═══════════════════════════════════════════════════
 function handleVisibilityChange(){
   if(document.visibilityState==='visible'){
-    if(audioCtx&&audioCtx.state==='suspended'){
-      audioCtx.resume().then(()=>{
-        audioUnlocked=true;
-        // Vider le cache de scheduling : les notes planifiées
-        // avant la suspension ont des timestamps périmés
-        clearScheduled();
-        // Réinitialiser lastTS pour éviter un saut de temps brutal
-        lastTS=null;
-      }).catch(e=>console.warn('AudioContext resume failed',e));
+    if(audioCtx&&(audioCtx.state==='suspended'||audioCtx.state==='closed')){
+      // Reconstruire complètement le contexte audio au retour
+      buildAudioContext().catch(e=>console.warn('Audio rebuild failed',e));
+      lastTS=null;
     }
   }else{
-    // App part en arrière-plan : vider le scheduling
-    // pour éviter que des notes périmées soient rejouées au retour
     clearScheduled();
     lastTS=null;
   }
@@ -1400,8 +1424,9 @@ window.addEventListener('pageshow',e=>{
 });
 // Focus (desktop + certains navigateurs mobiles)
 window.addEventListener('focus',()=>{
-  if(audioCtx&&audioCtx.state==='suspended'){
-    audioCtx.resume().then(()=>{audioUnlocked=true;clearScheduled();lastTS=null;});
+  if(audioCtx&&(audioCtx.state==='suspended'||audioCtx.state==='closed')){
+    buildAudioContext().catch(e=>console.warn('Audio rebuild on focus failed',e));
+    lastTS=null;
   }
 });
 async function selectSong(song,imported,card){
@@ -1453,7 +1478,7 @@ function showPlayer(){
     pianoCanvas=document.getElementById('piano-canvas');
     pianoCtx=pianoCanvas.getContext('2d');
     resize();
-    await ensureAudio();
+    await buildAudioContext();
     animId=requestAnimationFrame(liveLoop);
   },30);
 }
