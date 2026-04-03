@@ -725,7 +725,7 @@ function onSpeedChange(val){
 // ═══════════════════════════════════════════════════
 let micStream=null,micAnalyser=null,micSource=null;
 const NOTE_NAMES=['Do','Do#','Ré','Ré#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
-const MIC_RMS_GATE=0.018;
+const MIC_RMS_GATE=0.010;
 const MIN_MATCH_RATIO=0.75;
 const MAX_DETECTED_NOTES=6;
 
@@ -867,8 +867,10 @@ async function toggleTutoMode(){
 function jumpToTutoIndex(index){
   if(!tutoNotes.length)return;
   tutoNoteIndex=Math.max(0,Math.min(index,tutoNotes.length-1));
+  // currentTime = note.start + INTRO → yB = rollH → note pile au bord du clavier
   const noteTime=tutoNotes[tutoNoteIndex].start+INTRO;
-  currentTime=noteTime;lastTS=null;clearScheduled();
+  currentTime=noteTime;
+  lastTS=null;clearScheduled();
   stopFlash();startFlash(tutoNotes[tutoNoteIndex].midis);
   updateTutoUI();
 }
