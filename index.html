@@ -868,11 +868,8 @@ function jumpToTutoIndex(index){
   if(!tutoNotes.length)return;
   tutoNoteIndex=Math.max(0,Math.min(index,tutoNotes.length-1));
   const noteTime=tutoNotes[tutoNoteIndex].start+INTRO;
-  // On recule de la hauteur du roll en secondes pour que la note
-  // soit visuellement pile en bas de l'écran (sur le clavier)
-  const rollH=rollCanvas?rollCanvas.height:600;
-  const offsetSec=rollH/FALL_SPEED;
-  currentTime=Math.max(0,noteTime-offsetSec);
+  // noteTime = moment exact où la note touche le clavier visuellement
+  currentTime=noteTime;
   lastTS=null;clearScheduled();
   stopFlash();startFlash(tutoNotes[tutoNoteIndex].midis);
   updateTutoUI();
