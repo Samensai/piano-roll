@@ -23,21 +23,19 @@ body{
 @media(orientation:landscape){
   #status-bar{display:none!important}
   #app-header{display:none!important}
-  #player-nav{padding:2px 10px;border-bottom:none}
-  #player-nav .t{font-size:11px}
+  #player-nav{padding:2px 8px;gap:5px}
+  #player-nav .t{font-size:10px}
   #player-nav .c{display:none}
-  .legend-wrap{display:none!important}
-  #ctrl-bar{padding:2px 10px;gap:5px;padding-bottom:calc(2px + env(safe-area-inset-bottom,0px))}
-  #play-btn{width:26px;height:26px;border-radius:13px;font-size:11px}
-  #restart-btn{font-size:10px;padding:2px 4px}
-  #time-lbl{font-size:8px;min-width:50px}
+  #tuto-toggle{width:26px;height:26px;border-radius:7px;font-size:12px}
   #speed-lbl{display:none}
-  #speed-slider{display:none}
+  #speed-slider{width:36px}
   #vol-icon{display:none}
-  #vol-slider{display:none}
+  #vol-slider{width:30px}
+  #ctrl-bar{padding:3px 10px;gap:7px;padding-bottom:calc(3px + env(safe-area-inset-bottom,0px))}
+  #play-btn{width:28px;height:28px;border-radius:14px;font-size:12px}
+  #restart-btn{font-size:10px}
+  #time-lbl{font-size:8px;min-width:50px}
   #piano-wrap{height:55px!important}
-  #bottom-bar{padding:2px 10px}
-  #tuto-toggle{padding:5px;font-size:11px}
   #tuto-bar{padding:3px 10px;gap:5px}
   #tuto-play-label{display:none}
   #tuto-note{font-size:13px;min-width:24px}
@@ -222,43 +220,54 @@ body{
 
 /* Player */
 #player-screen{flex:1;display:none;flex-direction:column;overflow:hidden}
+
+/* Player nav (top bar with tuto btn + title + vol + speed) */
 #player-nav{
-  padding:10px 14px;display:flex;align-items:center;gap:8px;
+  padding:8px 12px;display:flex;align-items:center;gap:8px;
   background:#0e0e20;border-bottom:1px solid #1a1a35;flex-shrink:0;
 }
-#player-back{font-size:22px;color:#4a9fff;padding:2px 8px;cursor:pointer}
-#player-title{flex:1;min-width:0}
-#player-title .t{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#player-title .c{font-size:10px;color:#5a5a7a}
-.legend-wrap{display:flex;align-items:center;gap:4px}
-.legend-dot{width:7px;height:7px;border-radius:3px;opacity:.6}
-.legend-lbl{font-size:9px;color:#5a5a7a;margin-right:5px}
+#player-back{font-size:22px;color:#4a9fff;padding:2px 6px;cursor:pointer;flex-shrink:0}
 
-/* Bottom (now ctrl bar at bottom) */
-#ctrl-bar{
-  padding:7px 14px;display:flex;align-items:center;gap:7px;
-  background:#0e0e20;border-top:1px solid #1a1a35;flex-shrink:0;
-  padding-bottom:calc(7px + env(safe-area-inset-bottom,0px));
+/* Tuto toggle: petit carré rose en haut à gauche */
+#tuto-toggle{
+  width:34px;height:34px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,#c0306a,#e91e8c);
+  color:#fff;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:opacity .2s;
 }
-/* Top tuto button */
-#bottom-bar{
-  padding:8px 14px;background:#0e0e20;border-bottom:1px solid #1a1a35;flex-shrink:0;
+#tuto-toggle:active{opacity:.75}
+#tuto-toggle.stop{
+  background:linear-gradient(135deg,#1a4a1a,#0f3a0f);
+  border:1px solid #27ae60;
+}
+
+#player-title{flex:1;min-width:0}
+#player-title .t{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#player-title .c{font-size:10px;color:#5a5a7a}
+
+#speed-lbl{font-size:9px;color:#5a5a7a;white-space:nowrap;flex-shrink:0}
+#speed-slider{width:52px;accent-color:#4a9fff;flex-shrink:0}
+#vol-icon{font-size:11px;color:#5a5a7a;flex-shrink:0}
+#vol-slider{width:44px;accent-color:#4ade80;flex-shrink:0}
+
+/* Ctrl bar — bas : juste play + seek */
+#ctrl-bar{
+  padding:8px 14px;display:flex;align-items:center;gap:10px;
+  background:#0e0e20;border-top:1px solid #1a1a35;flex-shrink:0;
+  padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));
 }
 #play-btn{
-  width:34px;height:34px;border-radius:17px;border:1px solid #252545;
+  width:38px;height:38px;border-radius:19px;border:1px solid #252545;
   background:linear-gradient(135deg,#1a3a6a,#0f2a50);
   display:flex;align-items:center;justify-content:center;
-  font-size:14px;color:#4a9fff;cursor:pointer;flex-shrink:0;
+  font-size:15px;color:#4a9fff;cursor:pointer;flex-shrink:0;
 }
 #play-btn.disabled{background:#1a1a3a;color:#3a3a5a;cursor:default}
-#restart-btn{font-size:13px;color:#5a5a7a;padding:3px 5px;cursor:pointer}
-#seek-bar{flex:1;height:4px;background:#1a1a35;border-radius:2px;cursor:pointer;position:relative}
-#seek-fill{height:100%;width:0%;background:linear-gradient(90deg,#4a9fff,#4ade80);border-radius:2px;pointer-events:none}
-#time-lbl{font-size:10px;color:#5a5a7a;min-width:65px;text-align:right;white-space:nowrap}
-#speed-lbl{font-size:9px;color:#3a3a5a;white-space:nowrap}
-#speed-slider{width:44px;accent-color:#4a9fff}
-#vol-icon{font-size:10px;color:#3a3a5a}
-#vol-slider{width:36px;accent-color:#4ade80}
+#restart-btn{font-size:14px;color:#5a5a7a;padding:3px 5px;cursor:pointer;flex-shrink:0}
+#seek-bar{flex:1;height:5px;background:#1a1a35;border-radius:3px;cursor:pointer;position:relative}
+#seek-fill{height:100%;width:0%;background:linear-gradient(90deg,#4a9fff,#4ade80);border-radius:3px;pointer-events:none}
+#time-lbl{font-size:10px;color:#5a5a7a;min-width:65px;text-align:right;white-space:nowrap;flex-shrink:0}
 
 /* Roll & Piano */
 #roll-wrap{flex:1;position:relative;overflow:hidden;background:#0c0c1e}
@@ -289,12 +298,6 @@ body{
 #tuto-feedback{font-size:18px;min-width:22px;text-align:center}
 
 /* Tuto bar (between piano and ctrl) */
-#tuto-toggle{
-  width:100%;padding:13px;border-radius:14px;border:none;
-  font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;
-}
-#tuto-toggle.start{background:linear-gradient(135deg,#3a1a0a,#5a2a0a);color:#fbbf24;border:1px solid #e67e22}
-#tuto-toggle.stop{background:linear-gradient(135deg,#1a4a1a,#0f3a0f);color:#4ade80;border:1px solid #27ae60}
 .hidden{display:none!important}
 input[type=range]{height:16px}
 input[type=file]{display:none}
@@ -422,17 +425,15 @@ input[type=file]{display:none}
 <div id="player-screen">
   <div id="player-nav">
     <div id="player-back" onclick="goLibrary()">‹</div>
+    <button id="tuto-toggle" class="start" onclick="toggleTutoMode()">🎤</button>
     <div id="player-title"><div class="t" id="p-title"></div><div class="c" id="p-composer"></div></div>
-    <div class="legend-wrap">
-      <div class="legend-dot" style="background:#4a9fff"></div><span class="legend-lbl">Droite</span>
-      <div class="legend-dot" style="background:#27ae60"></div><span class="legend-lbl">Gauche</span>
-    </div>
+    <span id="speed-lbl">×1.0</span>
+    <input type="range" id="speed-slider" min="0.25" max="2" step="0.25" value="1"
+           oninput="onSpeedChange(this.value)">
+    <span id="vol-icon">🔊</span>
+    <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="0.6"
+           oninput="setVolume(this.value)">
   </div>
-  <div id="bottom-bar">
-    <button id="tuto-toggle" class="start" onclick="toggleTutoMode()">🎤 Mode Tuto</button>
-  </div>
-  <div id="roll-wrap"><canvas id="roll-canvas"></canvas></div>
-  <div id="piano-wrap"><canvas id="piano-canvas"></canvas></div>
   <div id="tuto-bar">
     <button id="tuto-prev" onclick="tutoPrev()">‹</button>
     <button id="tuto-next" onclick="tutoNext()">›</button>
@@ -443,17 +444,13 @@ input[type=file]{display:none}
     <span id="tuto-detected">—</span>
     <span id="tuto-feedback">🎵</span>
   </div>
+  <div id="roll-wrap"><canvas id="roll-canvas"></canvas></div>
+  <div id="piano-wrap"><canvas id="piano-canvas"></canvas></div>
   <div id="ctrl-bar">
     <div id="play-btn" onclick="togglePlay()"><span id="play-icon">▶</span></div>
     <div id="restart-btn" onclick="doRestart()">⏮</div>
     <div id="seek-bar" onclick="seekTo(event)"><div id="seek-fill"></div></div>
     <span id="time-lbl">0:00 / 0:00</span>
-    <span id="speed-lbl">×1.0</span>
-    <input type="range" id="speed-slider" min="0.25" max="2" step="0.25" value="1"
-           oninput="onSpeedChange(this.value)">
-    <span id="vol-icon">🔊</span>
-    <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="0.6"
-           oninput="setVolume(this.value)">
   </div>
 </div>
 
