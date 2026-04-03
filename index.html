@@ -221,35 +221,36 @@ body{
 /* Player */
 #player-screen{flex:1;display:none;flex-direction:column;overflow:hidden}
 
-/* Player nav (top bar with tuto btn + title + vol + speed) */
+/* Player nav (top bar) */
 #player-nav{
-  padding:8px 12px;display:flex;align-items:center;gap:8px;
+  padding:8px 12px;display:flex;align-items:center;gap:10px;
   background:#0e0e20;border-bottom:1px solid #1a1a35;flex-shrink:0;
 }
 #player-back{font-size:22px;color:#4a9fff;padding:2px 6px;cursor:pointer;flex-shrink:0}
 
-/* Tuto toggle: petit carré rose en haut à gauche */
+/* Tuto toggle: carré transparent/glass */
 #tuto-toggle{
-  width:34px;height:34px;border-radius:10px;border:none;
-  background:linear-gradient(135deg,#c0306a,#e91e8c);
-  color:#fff;font-size:16px;cursor:pointer;
+  width:34px;height:34px;border-radius:10px;
+  border:1px solid rgba(232,80,160,0.45);
+  background:rgba(220,60,140,0.18);
+  color:rgba(255,150,210,0.95);font-size:16px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;transition:opacity .2s;
+  flex-shrink:0;transition:background .2s,border-color .2s;
+  backdrop-filter:blur(4px);
 }
-#tuto-toggle:active{opacity:.75}
+#tuto-toggle:active{background:rgba(220,60,140,0.32)}
 #tuto-toggle.stop{
-  background:linear-gradient(135deg,#1a4a1a,#0f3a0f);
-  border:1px solid #27ae60;
+  border:1px solid rgba(39,174,96,0.5);
+  background:rgba(39,174,96,0.18);
+  color:rgba(100,255,160,0.95);
 }
 
-#player-title{flex:1;min-width:0}
-#player-title .t{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#player-title .c{font-size:10px;color:#5a5a7a}
+#player-title{display:none}
 
 #speed-lbl{font-size:9px;color:#5a5a7a;white-space:nowrap;flex-shrink:0}
-#speed-slider{width:52px;accent-color:#4a9fff;flex-shrink:0}
+#speed-slider{flex:1;min-width:0;accent-color:#4a9fff}
 #vol-icon{font-size:11px;color:#5a5a7a;flex-shrink:0}
-#vol-slider{width:44px;accent-color:#4ade80;flex-shrink:0}
+#vol-slider{flex:1;min-width:0;accent-color:#4ade80}
 
 /* Ctrl bar — bas : juste play + seek */
 #ctrl-bar{
@@ -428,7 +429,7 @@ input[type=file]{display:none}
     <button id="tuto-toggle" class="start" onclick="toggleTutoMode()">🎤</button>
     <div id="player-title"><div class="t" id="p-title"></div><div class="c" id="p-composer"></div></div>
     <span id="speed-lbl">×1.0</span>
-    <input type="range" id="speed-slider" min="0.25" max="2" step="0.25" value="1"
+    <input type="range" id="speed-slider" min="0.2" max="2" step="0.1" value="1"
            oninput="onSpeedChange(this.value)">
     <span id="vol-icon">🔊</span>
     <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="0.6"
