@@ -855,7 +855,7 @@ async function toggleTutoMode(){
   if(!ok)return;
   tutoMode=true;tutoActive=true;
   const btn=document.getElementById('tuto-toggle');
-  btn.textContent='⏹ Arrêter le Tuto';btn.className='stop';
+  btn.textContent='⏹';btn.className='stop';
   document.getElementById('tuto-bar').style.display='flex';
   document.getElementById('play-btn').classList.add('disabled');
   buildTutoNotes();
@@ -877,7 +877,7 @@ function stopTutoMode(){
   tutoMode=false;tutoActive=false;
   stopMic();clearInterval(tutoFlashIv);tutoFlashIv=null;flashMidi=[];flashOn=false;
   const btn=document.getElementById('tuto-toggle');
-  btn.textContent='🎤 Mode Tuto';btn.className='start';
+  btn.textContent='🎤';btn.className='start';
   document.getElementById('tuto-bar').style.display='none';
   document.getElementById('play-btn').classList.remove('disabled');
   playing=false;document.getElementById('play-icon').textContent='▶';
