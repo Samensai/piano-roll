@@ -1587,7 +1587,10 @@ function liveLoop(ts){
   }else lastTS=null;
 
   tutoTick();
-  if(rollCanvas)drawScene(currentTime,rollCanvas.width,rollCanvas.height);
+  if(rollCanvas){
+    const dpr=window.devicePixelRatio||1;
+    drawScene(currentTime, rollCanvas.width/dpr, rollCanvas.height/dpr);
+  }
   const total=totalDuration+INTRO;
   document.getElementById('seek-fill').style.width=(total>0?Math.min(currentTime/total,1)*100:0)+'%';
   document.getElementById('time-lbl').textContent=fmt(Math.max(currentTime-INTRO,0))+' / '+fmt(totalDuration);
@@ -1655,18 +1658,17 @@ function attachRollScrub(){
 
 function resize(){
   if(!rollCanvas)return;
-  _layout=null;
+  _layout=null;_lw=0;
+  const dpr=window.devicePixelRatio||1;
   const ph=getPianoH();
-  // Forcer la hauteur du piano-wrap avant de mesurer le roll
   const pianoWrap=document.getElementById('piano-wrap');
   pianoWrap.style.height=ph+'px';
   pianoWrap.style.flexShrink='0';
-  // Laisser le layout se recalculer avant de mesurer
+
   requestAnimationFrame(()=>{
     if(!rollCanvas)return;
     const playerScreen=document.getElementById('player-screen');
     const rollWrap=document.getElementById('roll-wrap');
-    // Hauteur dispo = hauteur totale du player minus tous les éléments sauf le roll
     const totalH=playerScreen.clientHeight;
     let usedH=0;
     for(const child of playerScreen.children){
@@ -1674,11 +1676,24 @@ function resize(){
       usedH+=child.offsetHeight;
     }
     const rollH=Math.max(totalH-usedH,100);
+    const rollW=rollWrap.clientWidth;
+
     rollWrap.style.height=rollH+'px';
-    rollCanvas.width=rollWrap.clientWidth;
-    rollCanvas.height=rollH;
-    pianoCanvas.width=pianoWrap.clientWidth;
-    pianoCanvas.height=ph;
+
+    // Canvas roll — dimensions physiques = CSS × dpr
+    rollCanvas.style.width=rollW+'px';
+    rollCanvas.style.height=rollH+'px';
+    rollCanvas.width=Math.round(rollW*dpr);
+    rollCanvas.height=Math.round(rollH*dpr);
+    rollCtx.setTransform(dpr,0,0,dpr,0,0);
+
+    // Canvas piano
+    const pianoW=pianoWrap.clientWidth;
+    pianoCanvas.style.width=pianoW+'px';
+    pianoCanvas.style.height=ph+'px';
+    pianoCanvas.width=Math.round(pianoW*dpr);
+    pianoCanvas.height=Math.round(ph*dpr);
+    pianoCtx.setTransform(dpr,0,0,dpr,0,0);
   });
 }
 window.addEventListener('resize',resize);
