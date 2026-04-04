@@ -23,6 +23,7 @@ body{
 @media(orientation:landscape){
   #status-bar{display:none!important}
   #app-header{display:none!important}
+  #player-screen{overflow:hidden}
   #player-nav{padding:2px 8px;gap:5px}
   #player-nav .t{font-size:10px}
   #player-nav .c{display:none}
@@ -35,7 +36,8 @@ body{
   #play-btn{width:28px;height:28px;border-radius:14px;font-size:12px}
   #restart-btn{font-size:10px}
   #time-lbl{font-size:8px;min-width:50px}
-  #piano-wrap{height:55px!important}
+  #piano-wrap{height:55px!important;flex-shrink:0!important;overflow:hidden}
+  #roll-wrap{overflow:hidden;min-height:0}
   #tuto-bar{padding:3px 10px;gap:5px}
   #tuto-play-label{display:none}
   #tuto-note{font-size:13px;min-width:24px}
@@ -186,6 +188,37 @@ body{
 }
 
 #new-composer-wrap{display:none}
+
+/* Hand selection modal */
+#hand-modal{
+  position:fixed;inset:0;z-index:400;
+  display:none;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+}
+#hand-modal.open{display:flex}
+#hand-sheet{
+  width:100%;max-width:500px;
+  background:#0e0e22;border-radius:24px 24px 0 0;
+  border:1px solid #252545;border-bottom:none;
+  padding:24px 20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:14px;
+  animation:slideUp .3s ease;
+}
+#hand-sheet-title{font-size:18px;font-weight:800;text-align:center}
+#hand-sheet-sub{font-size:12px;color:#5a5a7a;text-align:center;margin-top:-6px}
+#hand-btns{display:flex;gap:10px}
+.hand-btn{
+  flex:1;padding:16px 8px;border-radius:16px;border:1px solid #252545;
+  background:linear-gradient(135deg,#141428,#1a1a35);
+  color:#e8e8f0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  transition:border-color .2s,background .2s;
+}
+.hand-btn:active{border-color:#4a9fff;background:#1a2a4a}
+.hand-icon{font-size:28px}
+.hand-lbl{font-size:12px;font-weight:600;color:#a0c4ff}
+.hand-btn-both{border-color:#27ae60}
+.hand-btn-both .hand-lbl{color:#4ade80}
 
 /* Song card edit button */
 .song-edit-btn{
@@ -422,11 +455,34 @@ input[type=file]{display:none}
   </div>
 </div>
 
+<!-- Hand selection modal -->
+<div id="hand-modal">
+  <div id="hand-sheet">
+    <div id="hand-sheet-title">🎤 Mode Tuto</div>
+    <div id="hand-sheet-sub">Quelle main voulez-vous travailler ?</div>
+    <div id="hand-btns">
+      <button class="hand-btn" data-hand="right">
+        <span class="hand-icon">🫱</span>
+        <span class="hand-lbl">Main droite</span>
+      </button>
+      <button class="hand-btn" data-hand="left">
+        <span class="hand-icon">🫲</span>
+        <span class="hand-lbl">Main gauche</span>
+      </button>
+      <button class="hand-btn hand-btn-both" data-hand="both">
+        <span class="hand-icon">🙌</span>
+        <span class="hand-lbl">Les deux</span>
+      </button>
+    </div>
+    <button class="modal-btn cancel" id="hand-cancel-btn">Annuler</button>
+  </div>
+</div>
+
 <!-- Player -->
 <div id="player-screen">
   <div id="player-nav">
     <div id="player-back" onclick="goLibrary()">‹</div>
-    <button id="tuto-toggle" class="start" onclick="toggleTutoMode()">🎤</button>
+    <button id="tuto-toggle" class="start">🎤</button>
     <div id="player-title"><div class="t" id="p-title"></div><div class="c" id="p-composer"></div></div>
     <span id="speed-lbl">×1.0</span>
     <input type="range" id="speed-slider" min="0.2" max="2" step="0.1" value="1"
@@ -725,7 +781,7 @@ function onSpeedChange(val){
 // ═══════════════════════════════════════════════════
 let micStream=null,micAnalyser=null,micSource=null;
 const NOTE_NAMES=['Do','Do#','Ré','Ré#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
-const MIC_RMS_GATE=0.010;
+const MIC_RMS_GATE=0.006;
 const MIN_MATCH_RATIO=0.75;
 const MAX_DETECTED_NOTES=6;
 
@@ -733,32 +789,7 @@ function midiToName(m){return NOTE_NAMES[m%12]+Math.floor(m/12-1)}
 function freqToMidi(f){return Math.round(12*Math.log2(f/440)+69)}
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12)}
 
-// FIX: filtre les harmoniques — garde seulement les fondamentales
-function filterHarmonics(peaks){
-  // Trier par amplitude décroissante
-  const sorted=[...peaks].sort((a,b)=>b.amp-a.amp);
-  const kept=[];
-
-  for(const peak of sorted){
-    const m=freqToMidi(peak.freq);
-    if(m<21||m>108)continue;
-
-    // Vérifier si ce pic est une harmonique d'une fondamentale déjà gardée
-    let isHarmonic=false;
-    for(const k of kept){
-      const ratio=peak.freq/k.freq;
-      // Harmoniques 2x, 3x, 4x, 5x avec tolérance de 3%
-      for(const h of[2,3,4,5,0.5]){
-        if(Math.abs(ratio-h)<h*0.04){isHarmonic=true;break}
-      }
-      if(isHarmonic)break;
-    }
-    if(!isHarmonic)kept.push(peak);
-    if(kept.length>=MAX_DETECTED_NOTES)break;
-  }
-  return kept;
-}
-
+// ── Nouvelle détection : énergie par note MIDI + filtre harmoniques ──
 function detectChord(){
   if(!micAnalyser)return[];
 
@@ -768,6 +799,7 @@ function detectChord(){
     micAnalyser._timeBuf=new Float32Array(micAnalyser.fftSize);
   }
 
+  // Gate RMS
   micAnalyser.getFloatTimeDomainData(micAnalyser._timeBuf);
   let rms=0;
   for(let i=0;i<micAnalyser._timeBuf.length;i++){const v=micAnalyser._timeBuf[i];rms+=v*v}
@@ -777,32 +809,58 @@ function detectChord(){
   micAnalyser.getFloatFrequencyData(micAnalyser._fftBuf);
   const buf=micAnalyser._fftBuf;
   const sr=audioCtx.sampleRate;
-  const fftSize=micAnalyser.fftSize;
-  const binHz=sr/fftSize;
+  const binHz=sr/micAnalyser.fftSize;
 
-  const minBin=Math.floor(50/binHz);
-  const maxBin=Math.ceil(2200/binHz);
+  // Pour chaque note MIDI, calcule l'énergie dans une fenêtre ±6%
+  const midiEnergy=new Float32Array(88); // MIDI 21..108
+  for(let m=21;m<=108;m++){
+    const f=midiToFreq(m);
+    const fLo=f*0.94, fHi=f*1.06;
+    const bLo=Math.max(1,Math.floor(fLo/binHz));
+    const bHi=Math.min(micAnalyser.frequencyBinCount-1,Math.ceil(fHi/binHz));
+    let e=0;
+    for(let b=bLo;b<=bHi;b++)e+=Math.pow(10,buf[b]/10);
+    midiEnergy[m-21]=e;
+  }
 
-  let sum=0,cnt=0;
-  for(let i=minBin;i<=maxBin;i++){sum+=buf[i];cnt++}
-  const floor=sum/cnt;
-  const thr=floor+20;
+  // Max global
+  let maxE=0;
+  for(let i=0;i<midiEnergy.length;i++)if(midiEnergy[i]>maxE)maxE=midiEnergy[i];
+  if(maxE<=0)return[];
 
-  const rawPeaks=[];
-  for(let i=minBin+1;i<maxBin-1;i++){
-    if(buf[i]>thr&&buf[i]>buf[i-1]&&buf[i]>buf[i+1]){
-      const a=buf[i-1],b=buf[i],c=buf[i+1];
-      const denom=2*(2*b-a-c);
-      const shift=Math.abs(denom)>1e-6?(c-a)/denom:0;
-      const freq=(i+shift)*binHz;
-      if(freq>=50&&freq<=2200)rawPeaks.push({freq,amp:b});
+  // Seuil : 20% de l'énergie max (≈ -7dB)
+  const thr=maxE*0.20;
+
+  // Maxima locaux au-dessus du seuil
+  const candidates=[];
+  for(let i=1;i<midiEnergy.length-1;i++){
+    if(midiEnergy[i]>=thr &&
+       midiEnergy[i]>=midiEnergy[i-1] &&
+       midiEnergy[i]>=midiEnergy[i+1]){
+      candidates.push({midi:i+21, e:midiEnergy[i]});
     }
   }
-  if(!rawPeaks.length)return[];
 
-  // FIX: filtrer les harmoniques avant de retourner
-  const filtered=filterHarmonics(rawPeaks);
-  return filtered.map(p=>freqToMidi(p.freq)).sort((a,b)=>a-b);
+  // Filtrer harmoniques : retirer les notes dont la fréquence est un multiple
+  // d'une note plus forte déjà retenue
+  candidates.sort((a,b)=>b.e-a.e);
+  const kept=[];
+  for(const c of candidates){
+    const fc=midiToFreq(c.midi);
+    let isHarmonic=false;
+    for(const k of kept){
+      const fk=midiToFreq(k.midi);
+      const ratio=fc/fk;
+      for(const h of[2,3,4,5,0.5,1/3,1/4]){
+        if(Math.abs(ratio-h)<h*0.07){isHarmonic=true;break}
+      }
+      if(isHarmonic)break;
+    }
+    if(!isHarmonic)kept.push(c);
+    if(kept.length>=MAX_DETECTED_NOTES)break;
+  }
+
+  return kept.map(c=>c.midi).sort((a,b)=>a-b);
 }
 
 async function startMic(){
@@ -829,9 +887,15 @@ function stopMic(){
 // ═══════════════════════════════════════════════════
 let tutoMode=false,tutoActive=false,tutoNoteIndex=0;
 let tutoNotes=[],tutoFlashIv=null,flashMidi=[],flashOn=false;
+let tutoHand='both'; // 'right' | 'left' | 'both'
 
 function buildTutoNotes(){
-  const sorted=[...notes].sort((a,b)=>a.start-b.start);
+  // Filtrer les notes selon la main choisie
+  const filtered=notes.filter(n=>{
+    if(tutoHand==='both')return true;
+    return n.hand===tutoHand;
+  });
+  const sorted=[...filtered].sort((a,b)=>a.start-b.start);
   const groups=[];
   sorted.forEach(n=>{
     const last=groups[groups.length-1];
@@ -848,8 +912,16 @@ function buildTutoNotes(){
 function tutoPrev(){if(!tutoMode||!tutoNotes.length)return;jumpToTutoIndex(tutoNoteIndex-1)}
 function tutoNext(){if(!tutoMode||!tutoNotes.length)return;jumpToTutoIndex(tutoNoteIndex+1)}
 
-async function toggleTutoMode(){
-  if(tutoMode){stopTutoMode();return}
+// Modal choix de main
+function openHandModal(){
+  document.getElementById('hand-modal').classList.add('open');
+}
+function closeHandModal(){
+  document.getElementById('hand-modal').classList.remove('open');
+}
+async function startTutoWithHand(hand){
+  closeHandModal();
+  tutoHand=hand;
   await ensureSamplesLoaded();
   const ok=await startMic();
   if(!ok)return;
@@ -862,6 +934,11 @@ async function toggleTutoMode(){
   tutoNoteIndex=0;
   clearScheduled();playing=false;lastTS=null;
   jumpToTutoIndex(0);
+}
+
+async function toggleTutoMode(){
+  if(tutoMode){stopTutoMode();return}
+  openHandModal();
 }
 
 function jumpToTutoIndex(index){
@@ -1580,11 +1657,29 @@ function resize(){
   if(!rollCanvas)return;
   _layout=null;
   const ph=getPianoH();
-  document.getElementById('piano-wrap').style.height=ph+'px';
-  rollCanvas.width=rollCanvas.parentElement.clientWidth;
-  rollCanvas.height=rollCanvas.parentElement.clientHeight;
-  pianoCanvas.width=pianoCanvas.parentElement.clientWidth;
-  pianoCanvas.height=ph;
+  // Forcer la hauteur du piano-wrap avant de mesurer le roll
+  const pianoWrap=document.getElementById('piano-wrap');
+  pianoWrap.style.height=ph+'px';
+  pianoWrap.style.flexShrink='0';
+  // Laisser le layout se recalculer avant de mesurer
+  requestAnimationFrame(()=>{
+    if(!rollCanvas)return;
+    const playerScreen=document.getElementById('player-screen');
+    const rollWrap=document.getElementById('roll-wrap');
+    // Hauteur dispo = hauteur totale du player minus tous les éléments sauf le roll
+    const totalH=playerScreen.clientHeight;
+    let usedH=0;
+    for(const child of playerScreen.children){
+      if(child===rollWrap)continue;
+      usedH+=child.offsetHeight;
+    }
+    const rollH=Math.max(totalH-usedH,100);
+    rollWrap.style.height=rollH+'px';
+    rollCanvas.width=rollWrap.clientWidth;
+    rollCanvas.height=rollH;
+    pianoCanvas.width=pianoWrap.clientWidth;
+    pianoCanvas.height=ph;
+  });
 }
 window.addEventListener('resize',resize);
 
@@ -1620,6 +1715,17 @@ async function init(){
 
 document.addEventListener('touchstart',()=>ensureAudio(),{once:true});
 document.addEventListener('click',()=>ensureAudio(),{once:true});
+
+// Bouton tuto via addEventListener (plus fiable sur iOS Safari PWA)
+document.getElementById('tuto-toggle').addEventListener('click', toggleTutoMode);
+document.getElementById('hand-cancel-btn').addEventListener('click', closeHandModal);
+document.getElementById('hand-modal').querySelectorAll('.hand-btn').forEach(btn=>{
+  btn.addEventListener('click', e=>{
+    const hand=btn.getAttribute('data-hand');
+    if(hand)startTutoWithHand(hand);
+  });
+});
+
 init();
 </script>
 </body>
