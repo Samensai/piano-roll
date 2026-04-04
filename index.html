@@ -828,8 +828,8 @@ function detectChord(){
   for(let i=0;i<midiEnergy.length;i++)if(midiEnergy[i]>maxE)maxE=midiEnergy[i];
   if(maxE<=0)return[];
 
-  // Seuil : 20% de l'énergie max (≈ -7dB)
-  const thr=maxE*0.20;
+  // Seuil : 8% de l'énergie max (au lieu de 20%) — beaucoup plus strict
+  const thr=maxE*0.08;
 
   // Maxima locaux au-dessus du seuil
   const candidates=[];
@@ -997,7 +997,7 @@ function tutoTick(){
 
   if(detected.length>0){
     document.getElementById('tuto-detected').textContent=detected.map(midiToName).join(', ');
-    const matched=expected.filter(em=>detected.some(dm=>Math.abs(dm-em)<=1));
+    const matched=expected.filter(em=>detected.some(dm=>dm===em));
     const ratio=matched.length/expected.length;
     const pct=Math.round(ratio*100);
     document.getElementById('tuto-pitch-bar').style.width=pct+'%';
@@ -1028,7 +1028,7 @@ function tutoTick(){
         setTimeout(()=>{tutoValidating=false},300);
       },350);
     }else if(matched.length<requiredMatches&&!tutoValidating){
-      const missing=expected.filter(em=>!detected.some(dm=>Math.abs(dm-em)<=1)).map(midiToName).join(', ');
+      const missing=expected.filter(em=>!detected.some(dm=>dm===em)).map(midiToName).join(', ');
       document.getElementById('tuto-feedback').textContent='❌';
       document.getElementById('tuto-status').textContent='Manque : '+missing;
       document.getElementById('tuto-status').style.background='#3a1a1a';
