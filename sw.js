@@ -461,20 +461,20 @@ input[type=file]{display:none}
     <div id="hand-sheet-title">🎤 Mode Tuto</div>
     <div id="hand-sheet-sub">Quelle main voulez-vous travailler ?</div>
     <div id="hand-btns">
-      <button class="hand-btn" onclick="startTutoWithHand('right')">
+      <button class="hand-btn" data-hand="right">
         <span class="hand-icon">🫱</span>
         <span class="hand-lbl">Main droite</span>
       </button>
-      <button class="hand-btn" onclick="startTutoWithHand('left')">
+      <button class="hand-btn" data-hand="left">
         <span class="hand-icon">🫲</span>
         <span class="hand-lbl">Main gauche</span>
       </button>
-      <button class="hand-btn hand-btn-both" onclick="startTutoWithHand('both')">
+      <button class="hand-btn hand-btn-both" data-hand="both">
         <span class="hand-icon">🙌</span>
         <span class="hand-lbl">Les deux</span>
       </button>
     </div>
-    <button class="modal-btn cancel" onclick="closeHandModal()">Annuler</button>
+    <button class="modal-btn cancel" id="hand-cancel-btn">Annuler</button>
   </div>
 </div>
 
@@ -482,7 +482,7 @@ input[type=file]{display:none}
 <div id="player-screen">
   <div id="player-nav">
     <div id="player-back" onclick="goLibrary()">‹</div>
-    <button id="tuto-toggle" class="start" onclick="toggleTutoMode()">🎤</button>
+    <button id="tuto-toggle" class="start">🎤</button>
     <div id="player-title"><div class="t" id="p-title"></div><div class="c" id="p-composer"></div></div>
     <span id="speed-lbl">×1.0</span>
     <input type="range" id="speed-slider" min="0.2" max="2" step="0.1" value="1"
@@ -781,36 +781,15 @@ function onSpeedChange(val){
 // ═══════════════════════════════════════════════════
 let micStream=null,micAnalyser=null,micSource=null;
 const NOTE_NAMES=['Do','Do#','Ré','Ré#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
-const MIC_RMS_GATE=0.007;
+const MIC_RMS_GATE=0.006;
 const MIN_MATCH_RATIO=0.75;
 const MAX_DETECTED_NOTES=6;
-// Un pic est retenu seulement s'il est à moins de REL_THR_DB dB du pic le plus fort
-const REL_THR_DB=12; // ex: pic max à -10dB → on garde tout ce qui est > -22dB
 
 function midiToName(m){return NOTE_NAMES[m%12]+Math.floor(m/12-1)}
 function freqToMidi(f){return Math.round(12*Math.log2(f/440)+69)}
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12)}
 
-function filterHarmonics(peaks){
-  const sorted=[...peaks].sort((a,b)=>b.amp-a.amp);
-  const kept=[];
-  for(const peak of sorted){
-    const m=freqToMidi(peak.freq);
-    if(m<21||m>108)continue;
-    let isHarmonic=false;
-    for(const k of kept){
-      const ratio=peak.freq/k.freq;
-      for(const h of[2,3,4,5,0.5]){
-        if(Math.abs(ratio-h)<h*0.04){isHarmonic=true;break}
-      }
-      if(isHarmonic)break;
-    }
-    if(!isHarmonic)kept.push(peak);
-    if(kept.length>=MAX_DETECTED_NOTES)break;
-  }
-  return kept;
-}
-
+// ── Nouvelle détection : énergie par note MIDI + filtre harmoniques ──
 function detectChord(){
   if(!micAnalyser)return[];
 
@@ -820,6 +799,7 @@ function detectChord(){
     micAnalyser._timeBuf=new Float32Array(micAnalyser.fftSize);
   }
 
+  // Gate RMS
   micAnalyser.getFloatTimeDomainData(micAnalyser._timeBuf);
   let rms=0;
   for(let i=0;i<micAnalyser._timeBuf.length;i++){const v=micAnalyser._timeBuf[i];rms+=v*v}
@@ -829,33 +809,58 @@ function detectChord(){
   micAnalyser.getFloatFrequencyData(micAnalyser._fftBuf);
   const buf=micAnalyser._fftBuf;
   const sr=audioCtx.sampleRate;
-  const fftSize=micAnalyser.fftSize;
-  const binHz=sr/fftSize;
+  const binHz=sr/micAnalyser.fftSize;
 
-  const minBin=Math.floor(50/binHz);
-  const maxBin=Math.ceil(2200/binHz);
+  // Pour chaque note MIDI, calcule l'énergie dans une fenêtre ±6%
+  const midiEnergy=new Float32Array(88); // MIDI 21..108
+  for(let m=21;m<=108;m++){
+    const f=midiToFreq(m);
+    const fLo=f*0.94, fHi=f*1.06;
+    const bLo=Math.max(1,Math.floor(fLo/binHz));
+    const bHi=Math.min(micAnalyser.frequencyBinCount-1,Math.ceil(fHi/binHz));
+    let e=0;
+    for(let b=bLo;b<=bHi;b++)e+=Math.pow(10,buf[b]/10);
+    midiEnergy[m-21]=e;
+  }
 
-  // Trouver le pic absolu dans la plage
-  let maxAmp=-Infinity;
-  for(let i=minBin;i<=maxBin;i++)if(buf[i]>maxAmp)maxAmp=buf[i];
+  // Max global
+  let maxE=0;
+  for(let i=0;i<midiEnergy.length;i++)if(midiEnergy[i]>maxE)maxE=midiEnergy[i];
+  if(maxE<=0)return[];
 
-  // Seuil relatif : on garde seulement les pics à moins de REL_THR_DB sous le max
-  const relThr=maxAmp-REL_THR_DB;
+  // Seuil : 20% de l'énergie max (≈ -7dB)
+  const thr=maxE*0.20;
 
-  const rawPeaks=[];
-  for(let i=minBin+1;i<maxBin-1;i++){
-    if(buf[i]>relThr&&buf[i]>buf[i-1]&&buf[i]>buf[i+1]){
-      const a=buf[i-1],b=buf[i],c=buf[i+1];
-      const denom=2*(2*b-a-c);
-      const shift=Math.abs(denom)>1e-6?(c-a)/denom:0;
-      const freq=(i+shift)*binHz;
-      if(freq>=50&&freq<=2200)rawPeaks.push({freq,amp:b});
+  // Maxima locaux au-dessus du seuil
+  const candidates=[];
+  for(let i=1;i<midiEnergy.length-1;i++){
+    if(midiEnergy[i]>=thr &&
+       midiEnergy[i]>=midiEnergy[i-1] &&
+       midiEnergy[i]>=midiEnergy[i+1]){
+      candidates.push({midi:i+21, e:midiEnergy[i]});
     }
   }
-  if(!rawPeaks.length)return[];
 
-  const filtered=filterHarmonics(rawPeaks);
-  return filtered.map(p=>freqToMidi(p.freq)).sort((a,b)=>a-b);
+  // Filtrer harmoniques : retirer les notes dont la fréquence est un multiple
+  // d'une note plus forte déjà retenue
+  candidates.sort((a,b)=>b.e-a.e);
+  const kept=[];
+  for(const c of candidates){
+    const fc=midiToFreq(c.midi);
+    let isHarmonic=false;
+    for(const k of kept){
+      const fk=midiToFreq(k.midi);
+      const ratio=fc/fk;
+      for(const h of[2,3,4,5,0.5,1/3,1/4]){
+        if(Math.abs(ratio-h)<h*0.07){isHarmonic=true;break}
+      }
+      if(isHarmonic)break;
+    }
+    if(!isHarmonic)kept.push(c);
+    if(kept.length>=MAX_DETECTED_NOTES)break;
+  }
+
+  return kept.map(c=>c.midi).sort((a,b)=>a-b);
 }
 
 async function startMic(){
@@ -1710,6 +1715,17 @@ async function init(){
 
 document.addEventListener('touchstart',()=>ensureAudio(),{once:true});
 document.addEventListener('click',()=>ensureAudio(),{once:true});
+
+// Bouton tuto via addEventListener (plus fiable sur iOS Safari PWA)
+document.getElementById('tuto-toggle').addEventListener('click', toggleTutoMode);
+document.getElementById('hand-cancel-btn').addEventListener('click', closeHandModal);
+document.getElementById('hand-modal').querySelectorAll('.hand-btn').forEach(btn=>{
+  btn.addEventListener('click', e=>{
+    const hand=btn.getAttribute('data-hand');
+    if(hand)startTutoWithHand(hand);
+  });
+});
+
 init();
 </script>
 </body>
