@@ -13,10 +13,37 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden}
+
+/* ── Thème : variables CSS ── */
+:root{
+  --bg:#0a0a1a;--bg2:#0e0e20;--bg3:#141428;--bg4:#1a1a35;
+  --border:#1a1a35;--border2:#252545;
+  --text:#e8e8f0;--text2:#5a5a7a;--text3:#3a3a5a;
+  --card-bg:linear-gradient(135deg,#141428,#1a1a35);
+  --roll-bg:#0c0c1e;--piano-bg:#111;
+  --sheet-bg:#0e0e22;
+  --input-bg:#141428;
+  --composer-bg:linear-gradient(135deg,#1a1a3a,#252550);
+  --empty:#3a3a5a;
+  --theme-icon:☀️;
+}
+body.light{
+  --bg:#f0f0f8;--bg2:#ffffff;--bg3:#f8f8ff;--bg4:#eeeef8;
+  --border:#ddddf0;--border2:#ccccee;
+  --text:#1a1a2e;--text2:#6666aa;--text3:#aaaacc;
+  --card-bg:linear-gradient(135deg,#ffffff,#f0f0ff);
+  --roll-bg:#1a1a2e;--piano-bg:#2a2a3e;
+  --sheet-bg:#ffffff;
+  --input-bg:#f0f0ff;
+  --composer-bg:linear-gradient(135deg,#e8e8ff,#d8d8f0);
+  --empty:#aaaacc;
+  --theme-icon:🌙;
+}
 body{
-  background:#0a0a1a;color:#e8e8f0;
+  background:var(--bg);color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
   display:flex;flex-direction:column;
+  transition:background .4s,color .4s;
 }
 
 /* Landscape */
@@ -49,24 +76,44 @@ body{
 /* Status bar */
 #status-bar{
   height:env(safe-area-inset-top,20px);min-height:20px;
-  background:#0a0a1a;flex-shrink:0;
+  background:var(--bg);flex-shrink:0;transition:background .4s;
 }
 #app-header{
-  height:44px;background:#0a0a1a;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  border-bottom:1px solid #14142a;
+  height:44px;background:var(--bg);flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;
+  border-bottom:1px solid var(--border);transition:background .4s,border-color .4s;
 }
 #app-header .logo{
   font-size:15px;font-weight:700;letter-spacing:.5px;
   background:linear-gradient(135deg,#4a9fff,#4ade80);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
 }
+#theme-btn{
+  width:32px;height:32px;border-radius:9px;border:1px solid var(--border2);
+  background:var(--bg4);font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .4s,border-color .4s;flex-shrink:0;
+}
+
+/* Search bar */
+#search-wrap{padding:10px 20px 0;flex-shrink:0}
+#search-input{
+  width:100%;padding:9px 14px 9px 36px;
+  background:var(--bg4);border:1px solid var(--border2);border-radius:12px;
+  color:var(--text);font-size:14px;outline:none;
+  transition:background .4s,border-color .3s;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a5a7a' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:12px center;
+  -webkit-appearance:none;
+}
+#search-input:focus{border-color:#4a9fff}
+#search-input::placeholder{color:var(--text2)}
 
 /* Loading */
 #loading-screen{
-  position:fixed;inset:0;background:#0a0a1a;z-index:999;
-  display:none;
-  flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  position:fixed;inset:0;background:var(--bg);z-index:999;
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;
 }
 #loading-screen .icon{font-size:56px}
 #loading-screen .title{
@@ -74,16 +121,16 @@ body{
   background:linear-gradient(135deg,#a0c4ff,#4ade80);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
 }
-#load-bar-wrap{width:220px;height:4px;background:#1a1a3a;border-radius:2px;overflow:hidden}
+#load-bar-wrap{width:220px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
 #load-bar{height:100%;width:0%;background:linear-gradient(90deg,#4a9fff,#4ade80);border-radius:2px;transition:width .4s}
-#load-msg{font-size:12px;color:#556}
+#load-msg{font-size:12px;color:var(--text2)}
 
 /* Library */
 #library-screen{flex:1;display:flex;flex-direction:column;overflow:hidden}
 #lib-header{padding:20px 20px 0;flex-shrink:0}
-#lib-header h1{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:2px}
-#lib-header p{font-size:13px;color:#5a5a7a}
-#lib-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 20px 120px}
+#lib-header h1{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:2px;color:var(--text)}
+#lib-header p{font-size:13px;color:var(--text2)}
+#lib-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 20px 120px}
 
 /* Composer sections */
 .composer-section{margin-bottom:4px}
@@ -94,12 +141,12 @@ body{
 }
 .composer-avatar{
   width:36px;height:36px;border-radius:10px;
-  background:linear-gradient(135deg,#1a1a3a,#252550);
+  background:var(--composer-bg);
   display:flex;align-items:center;justify-content:center;
-  font-size:18px;flex-shrink:0;
+  font-size:18px;flex-shrink:0;transition:background .4s;
 }
-.composer-name{font-size:15px;font-weight:700;flex:1}
-.composer-count{font-size:11px;color:#5a5a7a}
+.composer-name{font-size:15px;font-weight:700;flex:1;color:var(--text)}
+.composer-count{font-size:11px;color:var(--text2)}
 .composer-chevron{font-size:12px;color:#4a9fff;transition:transform .2s}
 .composer-chevron.open{transform:rotate(90deg)}
 .composer-songs{overflow:hidden;transition:max-height .3s ease}
@@ -107,10 +154,10 @@ body{
 
 /* Song card */
 .song-card{
-  background:linear-gradient(135deg,#141428,#1a1a35);
-  border:1px solid #252545;border-radius:16px;
+  background:var(--card-bg);
+  border:1px solid var(--border2);border-radius:16px;
   padding:14px 16px;display:flex;align-items:center;gap:12px;
-  margin-bottom:8px;cursor:pointer;transition:border-color .2s,transform .15s;
+  margin-bottom:8px;cursor:pointer;transition:border-color .2s,transform .15s,background .4s;
   -webkit-user-select:none;user-select:none;
 }
 .song-card:active{transform:scale(.98);border-color:#4a9fff}
@@ -118,11 +165,11 @@ body{
   width:46px;height:46px;border-radius:12px;
   display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
 }
-.song-icon.builtin{background:linear-gradient(135deg,#1a1a3a,#252550)}
+.song-icon.builtin{background:var(--composer-bg)}
 .song-icon.imported{background:linear-gradient(135deg,#1a3a5a,#0f2440)}
 .song-info{flex:1;min-width:0}
-.song-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.song-composer{font-size:11px;color:#6a6a8a;margin-top:1px}
+.song-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.song-composer{font-size:11px;color:var(--text2);margin-top:1px}
 .song-diff{font-size:9px;font-weight:700;padding:3px 7px;border-radius:6px;letter-spacing:.5px;flex-shrink:0}
 .song-arrow{font-size:16px;color:#4a9fff;flex-shrink:0}
 .diff-1{background:rgba(74,222,128,.12);color:#4ade80}
@@ -131,13 +178,13 @@ body{
 
 /* Import button */
 #import-btn{
-  margin-top:12px;padding:14px;border:2px dashed #252545;border-radius:14px;
-  text-align:center;cursor:pointer;color:#5a5a7a;font-size:14px;
+  margin-top:12px;padding:14px;border:2px dashed var(--border2);border-radius:14px;
+  text-align:center;cursor:pointer;color:var(--text2);font-size:14px;
   transition:border-color .2s;-webkit-user-select:none;
 }
 #import-btn:active{border-color:#4ade80}
 #import-btn .plus{font-size:22px;display:block;margin-bottom:2px}
-.empty-msg{text-align:center;padding:24px 16px;color:#3a3a5a;font-size:13px;line-height:1.8}
+.empty-msg{text-align:center;padding:24px 16px;color:var(--empty);font-size:13px;line-height:1.8}
 
 /* ── Import Modal ── */
 #import-modal{
@@ -148,22 +195,22 @@ body{
 #import-modal.open{display:flex}
 #import-sheet{
   width:100%;max-width:500px;
-  background:#0e0e22;border-radius:24px 24px 0 0;
-  border:1px solid #252545;border-bottom:none;
+  background:var(--sheet-bg);border-radius:24px 24px 0 0;
+  border:1px solid var(--border2);border-bottom:none;
   padding:24px 20px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;gap:14px;
-  animation:slideUp .3s ease;
+  animation:slideUp .3s ease;transition:background .4s;
 }
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-#import-sheet h2{font-size:18px;font-weight:800;text-align:center;margin-bottom:2px}
-#import-sheet .sub{font-size:12px;color:#5a5a7a;text-align:center}
+#import-sheet h2{font-size:18px;font-weight:800;text-align:center;margin-bottom:2px;color:var(--text)}
+#import-sheet .sub{font-size:12px;color:var(--text2);text-align:center}
 
-.modal-field label{font-size:11px;font-weight:700;color:#5a5a7a;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px}
+.modal-field label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px}
 .modal-field input,.modal-field select{
-  width:100%;padding:11px 14px;background:#141428;
-  border:1px solid #252545;border-radius:12px;
-  color:#e8e8f0;font-size:15px;outline:none;
-  -webkit-appearance:none;appearance:none;
+  width:100%;padding:11px 14px;background:var(--input-bg);
+  border:1px solid var(--border2);border-radius:12px;
+  color:var(--text);font-size:15px;outline:none;
+  -webkit-appearance:none;appearance:none;transition:background .4s,border-color .3s;
 }
 .modal-field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a5a7a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
 .modal-field input:focus,.modal-field select:focus{border-color:#4a9fff}
@@ -171,7 +218,7 @@ body{
 .emoji-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .emoji-btn{
   aspect-ratio:1;border-radius:10px;border:2px solid transparent;
-  background:#141428;font-size:20px;display:flex;align-items:center;justify-content:center;
+  background:var(--input-bg);font-size:20px;display:flex;align-items:center;justify-content:center;
   cursor:pointer;transition:border-color .15s,background .15s;
 }
 .emoji-btn.selected{border-color:#4a9fff;background:#1a2a4a}
@@ -181,10 +228,14 @@ body{
   flex:1;padding:13px;border-radius:14px;border:none;
   font-size:15px;font-weight:700;cursor:pointer;
 }
-.modal-btn.cancel{background:#1a1a35;color:#5a5a7a}
+.modal-btn.cancel{background:var(--bg4);color:var(--text2)}
 .modal-btn.confirm{
   background:linear-gradient(135deg,#1a3a6a,#0f2a50);
   color:#4a9fff;border:1px solid #2a4a7a;
+}
+.modal-btn.delete{
+  background:linear-gradient(135deg,#3a0a0a,#5a0f0f);
+  color:#f87171;border:1px solid #7a1f1f;
 }
 
 #new-composer-wrap{display:none}
@@ -198,19 +249,18 @@ body{
 #hand-modal.open{display:flex}
 #hand-sheet{
   width:100%;max-width:500px;
-  background:#0e0e22;border-radius:24px 24px 0 0;
-  border:1px solid #252545;border-bottom:none;
+  background:var(--sheet-bg);border-radius:24px 24px 0 0;
+  border:1px solid var(--border2);border-bottom:none;
   padding:24px 20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;gap:14px;
   animation:slideUp .3s ease;
 }
-#hand-sheet-title{font-size:18px;font-weight:800;text-align:center}
-#hand-sheet-sub{font-size:12px;color:#5a5a7a;text-align:center;margin-top:-6px}
+#hand-sheet-title{font-size:18px;font-weight:800;text-align:center;color:var(--text)}
+#hand-sheet-sub{font-size:12px;color:var(--text2);text-align:center;margin-top:-6px}
 #hand-btns{display:flex;gap:10px}
 .hand-btn{
-  flex:1;padding:16px 8px;border-radius:16px;border:1px solid #252545;
-  background:linear-gradient(135deg,#141428,#1a1a35);
-  color:#e8e8f0;cursor:pointer;
+  flex:1;padding:16px 8px;border-radius:16px;border:1px solid var(--border2);
+  background:var(--card-bg);color:var(--text);cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:6px;
   transition:border-color .2s,background .2s;
 }
@@ -223,12 +273,12 @@ body{
 /* Song card edit button */
 .song-edit-btn{
   width:30px;height:30px;border-radius:8px;border:none;
-  background:#1a1a35;color:#5a5a7a;font-size:18px;
+  background:var(--bg4);color:var(--text2);font-size:18px;
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;flex-shrink:0;line-height:1;
   transition:background .15s,color .15s;
 }
-.song-edit-btn:active{background:#252545;color:#a0c4ff}
+.song-edit-btn:active{background:var(--border2);color:#a0c4ff}
 
 /* Edit modal */
 #edit-modal{
@@ -239,17 +289,13 @@ body{
 #edit-modal.open{display:flex}
 #edit-sheet{
   width:100%;max-width:500px;
-  background:#0e0e22;border-radius:24px 24px 0 0;
-  border:1px solid #252545;border-bottom:none;
+  background:var(--sheet-bg);border-radius:24px 24px 0 0;
+  border:1px solid var(--border2);border-bottom:none;
   padding:24px 20px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;gap:14px;
   animation:slideUp .3s ease;
 }
-#edit-sheet h2{font-size:18px;font-weight:800;text-align:center}
-.modal-btn.delete{
-  background:linear-gradient(135deg,#3a0a0a,#5a0f0f);
-  color:#f87171;border:1px solid #7a1f1f;
-}
+#edit-sheet h2{font-size:18px;font-weight:800;text-align:center;color:var(--text)}
 
 /* Player */
 #player-screen{flex:1;display:none;flex-direction:column;overflow:hidden}
@@ -257,7 +303,8 @@ body{
 /* Player nav (top bar) */
 #player-nav{
   padding:8px 12px;display:flex;align-items:center;gap:10px;
-  background:#0e0e20;border-bottom:1px solid #1a1a35;flex-shrink:0;
+  background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;
+  transition:background .4s,border-color .4s;
 }
 #player-back{font-size:22px;color:#4a9fff;padding:2px 6px;cursor:pointer;flex-shrink:0}
 
@@ -278,60 +325,108 @@ body{
   color:rgba(100,255,160,0.95);
 }
 
-#player-title{display:none}
+/* Loop btn — visible uniquement en mode tuto, dans player-nav */
+#loop-btn{
+  width:34px;height:34px;border-radius:10px;
+  border:1px solid rgba(74,159,255,0.3);
+  background:rgba(74,159,255,0.1);
+  color:rgba(150,200,255,0.8);font-size:16px;cursor:pointer;
+  display:none;align-items:center;justify-content:center;
+  flex-shrink:0;transition:background .2s,border-color .2s;
+}
+#loop-btn.active{
+  border-color:rgba(251,191,36,0.7);
+  background:rgba(251,191,36,0.18);
+  color:rgba(255,220,80,0.95);
+}
+#loop-btn.recording{
+  border-color:rgba(248,113,113,0.7);
+  background:rgba(248,113,113,0.18);
+  color:rgba(255,140,140,0.95);
+  animation:pulse .6s ease-in-out infinite alternate;
+}
+@keyframes pulse{from{opacity:.6}to{opacity:1}}
 
-#speed-lbl{font-size:9px;color:#5a5a7a;white-space:nowrap;flex-shrink:0}
+#player-title{display:none}
+#speed-lbl{font-size:9px;color:var(--text2);white-space:nowrap;flex-shrink:0}
 #speed-slider{flex:1;min-width:0;accent-color:#4a9fff}
-#vol-icon{font-size:11px;color:#5a5a7a;flex-shrink:0}
+#vol-icon{font-size:11px;color:var(--text2);flex-shrink:0}
 #vol-slider{flex:1;min-width:0;accent-color:#4ade80}
 
-/* Ctrl bar — bas : juste play + seek */
+/* Ctrl bar */
 #ctrl-bar{
   padding:8px 14px;display:flex;align-items:center;gap:10px;
-  background:#0e0e20;border-top:1px solid #1a1a35;flex-shrink:0;
+  background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;
   padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));
+  transition:background .4s,border-color .4s;
 }
 #play-btn{
-  width:38px;height:38px;border-radius:19px;border:1px solid #252545;
+  width:38px;height:38px;border-radius:19px;border:1px solid var(--border2);
   background:linear-gradient(135deg,#1a3a6a,#0f2a50);
   display:flex;align-items:center;justify-content:center;
   font-size:15px;color:#4a9fff;cursor:pointer;flex-shrink:0;
 }
-#play-btn.disabled{background:#1a1a3a;color:#3a3a5a;cursor:default}
-#restart-btn{font-size:14px;color:#5a5a7a;padding:3px 5px;cursor:pointer;flex-shrink:0}
-#seek-bar{flex:1;height:5px;background:#1a1a35;border-radius:3px;cursor:pointer;position:relative}
+#play-btn.disabled{background:var(--bg4);color:var(--text3);cursor:default}
+#restart-btn{font-size:14px;color:var(--text2);padding:3px 5px;cursor:pointer;flex-shrink:0}
+#seek-bar{flex:1;height:5px;background:var(--bg4);border-radius:3px;cursor:pointer;position:relative}
 #seek-fill{height:100%;width:0%;background:linear-gradient(90deg,#4a9fff,#4ade80);border-radius:3px;pointer-events:none}
-#time-lbl{font-size:10px;color:#5a5a7a;min-width:65px;text-align:right;white-space:nowrap;flex-shrink:0}
+#time-lbl{font-size:10px;color:var(--text2);min-width:65px;text-align:right;white-space:nowrap;flex-shrink:0}
 
 /* Roll & Piano */
-#roll-wrap{flex:1;position:relative;overflow:hidden;background:#0c0c1e}
+#roll-wrap{flex:1;position:relative;overflow:hidden;background:var(--roll-bg)}
 #roll-canvas{display:block}
-#piano-wrap{flex-shrink:0;height:90px;background:#111;border-top:2px solid #1a1a35}
+#piano-wrap{flex-shrink:0;height:90px;background:var(--piano-bg);border-top:2px solid var(--border)}
 #piano-canvas{display:block}
 
 /* Tuto bar */
 #tuto-bar{
-  background:#0a0a18;border-top:1px solid #1a1a35;
+  background:var(--bg2);border-top:1px solid var(--border);
   padding:9px 14px;display:none;align-items:center;gap:8px;flex-shrink:0;
+  transition:background .4s;
 }
 #tuto-prev,#tuto-next{
-  border:none;background:#1a1a3a;color:#a0c4ff;
+  border:none;background:var(--bg4);color:#a0c4ff;
   border-radius:8px;padding:4px 10px;font-size:16px;font-weight:700;
 }
-#tuto-play-label{font-size:9px;color:#5a5a7a}
-#tuto-note{font-size:18px;font-weight:900;min-width:32px;text-align:center}
+#tuto-play-label{font-size:9px;color:var(--text2)}
+#tuto-note{font-size:18px;font-weight:900;min-width:32px;text-align:center;color:var(--text)}
 #tuto-status{
   font-size:11px;font-weight:600;padding:3px 9px;border-radius:14px;
-  background:#1a1a3a;border:1px solid #333;
+  background:var(--bg4);border:1px solid var(--border2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;
   transition:all .3s;
 }
-#tuto-pitch-wrap{flex:1;height:5px;background:#1a1a35;border-radius:3px;overflow:hidden}
+#tuto-pitch-wrap{flex:1;height:5px;background:var(--bg4);border-radius:3px;overflow:hidden}
 #tuto-pitch-bar{height:100%;width:0%;border-radius:3px;transition:width .1s;background:#e67e22}
-#tuto-detected{font-size:10px;color:#5a5a7a;min-width:36px;text-align:right}
+#tuto-detected{font-size:10px;color:var(--text2);min-width:36px;text-align:right}
 #tuto-feedback{font-size:18px;min-width:22px;text-align:center}
 
-/* Tuto bar (between piano and ctrl) */
+/* Stats modal */
+#stats-modal{
+  position:fixed;inset:0;z-index:500;
+  display:none;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
+}
+#stats-modal.open{display:flex}
+#stats-sheet{
+  width:100%;max-width:500px;
+  background:var(--sheet-bg);border-radius:24px 24px 0 0;
+  border:1px solid var(--border2);border-bottom:none;
+  padding:24px 20px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:16px;
+  animation:slideUp .3s ease;
+}
+#stats-sheet h2{font-size:18px;font-weight:800;text-align:center;color:var(--text)}
+.stats-row{display:flex;justify-content:space-around;gap:10px}
+.stat-box{
+  flex:1;text-align:center;padding:14px 8px;border-radius:16px;
+  background:var(--bg4);border:1px solid var(--border2);
+}
+.stat-val{font-size:28px;font-weight:900;color:#4a9fff}
+.stat-lbl{font-size:10px;color:var(--text2);margin-top:3px}
+.stats-mistakes{font-size:12px;color:var(--text2);text-align:center;line-height:1.8}
+.stats-mistakes b{color:var(--text)}
+
 .hidden{display:none!important}
 input[type=range]{height:16px}
 input[type=file]{display:none}
@@ -348,13 +443,19 @@ input[type=file]{display:none}
 </div>
 
 <div id="status-bar"></div>
-<div id="app-header"><span class="logo">🎹 Piano Tuto</span></div>
+<div id="app-header">
+  <span class="logo">🎹 Piano Tuto</span>
+  <button id="theme-btn" title="Changer le thème">☀️</button>
+</div>
 
 <!-- Library -->
 <div id="library-screen">
   <div id="lib-header">
     <h1>Bibliothèque</h1>
     <p>Choisissez un morceau pour commencer</p>
+  </div>
+  <div id="search-wrap">
+    <input type="text" id="search-input" placeholder="Rechercher un morceau ou compositeur…" oninput="filterLibrary(this.value)">
   </div>
   <div id="lib-scroll">
     <div id="composers-list"></div>
@@ -478,11 +579,29 @@ input[type=file]{display:none}
   </div>
 </div>
 
+<!-- Stats modal -->
+<div id="stats-modal">
+  <div id="stats-sheet">
+    <h2>📊 Résultats</h2>
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-val" id="stat-score">—</div><div class="stat-lbl">Score</div></div>
+      <div class="stat-box"><div class="stat-val" id="stat-notes">—</div><div class="stat-lbl">Notes jouées</div></div>
+      <div class="stat-box"><div class="stat-val" id="stat-time">—</div><div class="stat-lbl">Temps</div></div>
+    </div>
+    <div class="stats-mistakes" id="stat-mistakes"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="stats-close-btn">Fermer</button>
+      <button class="modal-btn confirm" id="stats-retry-btn">🔁 Recommencer</button>
+    </div>
+  </div>
+</div>
+
 <!-- Player -->
 <div id="player-screen">
   <div id="player-nav">
     <div id="player-back" onclick="goLibrary()">‹</div>
     <button id="tuto-toggle" class="start">🎤</button>
+    <button id="loop-btn" title="Boucle">🔁</button>
     <div id="player-title"><div class="t" id="p-title"></div><div class="c" id="p-composer"></div></div>
     <span id="speed-lbl">×1.0</span>
     <input type="range" id="speed-slider" min="0.2" max="2" step="0.1" value="1"
@@ -883,11 +1002,49 @@ function stopMic(){
 }
 
 // ═══════════════════════════════════════════════════
-// TUTO MODE
+// THEME TOGGLE
 // ═══════════════════════════════════════════════════
+let darkMode=true;
+function initTheme(){
+  const saved=localStorage.getItem('piano-theme');
+  if(saved==='light'){darkMode=false;document.body.classList.add('light')}
+  updateThemeBtn();
+}
+function toggleTheme(){
+  darkMode=!darkMode;
+  document.body.classList.toggle('light',!darkMode);
+  localStorage.setItem('piano-theme',darkMode?'dark':'light');
+  updateThemeBtn();
+}
+function updateThemeBtn(){
+  document.getElementById('theme-btn').textContent=darkMode?'☀️':'🌙';
+}
+
+// ═══════════════════════════════════════════════════
+// SEARCH / FILTER
+// ═══════════════════════════════════════════════════
+let searchQuery='';
+function filterLibrary(q){
+  searchQuery=q.trim().toLowerCase();
+  renderLibrary();
+  // Ouvrir tous les accordéons si recherche active
+  if(searchQuery){
+    document.querySelectorAll('.composer-songs').forEach(el=>{
+      el.classList.remove('collapsed');
+      el.style.maxHeight='';
+    });
+    document.querySelectorAll('.composer-chevron').forEach(el=>el.classList.add('open'));
+  }
+}
 let tutoMode=false,tutoActive=false,tutoNoteIndex=0;
 let tutoNotes=[],tutoFlashIv=null,flashMidi=[],flashOn=false;
-let tutoHand='both'; // 'right' | 'left' | 'both'
+let tutoHand='both';
+
+// Stats
+let tutoStats={attempts:0,successes:0,startTime:0,mistakes:{}};
+
+// Boucle : off → recording_start → recording_end → active → off
+let loopState='off',loopStartIdx=0,loopEndIdx=-1;
 
 function buildTutoNotes(){
   // Filtrer les notes selon la main choisie
@@ -926,10 +1083,14 @@ async function startTutoWithHand(hand){
   const ok=await startMic();
   if(!ok)return;
   tutoMode=true;tutoActive=true;
+  loopState='off';loopStartIdx=0;loopEndIdx=-1;
+  tutoStats={attempts:0,successes:0,startTime:Date.now(),mistakes:{}};
   const btn=document.getElementById('tuto-toggle');
   btn.textContent='⏹';btn.className='stop';
   document.getElementById('tuto-bar').style.display='flex';
   document.getElementById('play-btn').classList.add('disabled');
+  const lb=document.getElementById('loop-btn');
+  lb.style.display='flex';lb.className='';
   buildTutoNotes();
   tutoNoteIndex=0;
   clearScheduled();playing=false;lastTS=null;
@@ -958,11 +1119,16 @@ function jumpToTutoIndex(index){
 function stopTutoMode(){
   tutoMode=false;tutoActive=false;
   stopMic();clearInterval(tutoFlashIv);tutoFlashIv=null;flashMidi=[];flashOn=false;
+  loopState='off';
   const btn=document.getElementById('tuto-toggle');
   btn.textContent='🎤';btn.className='start';
   document.getElementById('tuto-bar').style.display='none';
   document.getElementById('play-btn').classList.remove('disabled');
+  const lb=document.getElementById('loop-btn');
+  lb.style.display='none';lb.className='';
   playing=false;document.getElementById('play-icon').textContent='▶';
+  // Afficher stats si au moins quelques notes jouées
+  if(tutoStats.attempts>0)showStats();
 }
 
 function updateTutoUI(){
@@ -1008,26 +1174,38 @@ function tutoTick(){
 
     if(matched.length>=requiredMatches&&!tutoValidating){
       tutoValidating=true;
+      tutoStats.attempts++;tutoStats.successes++;
       document.getElementById('tuto-feedback').textContent='✅';
       document.getElementById('tuto-status').textContent='✅ Parfait !';
       document.getElementById('tuto-status').style.background='#1a4a1a';
       document.getElementById('tuto-status').style.borderColor='#27ae60';
       stopFlash();
 
-      // FIX: délai de 350ms avant de passer à la note suivante
-      // + garde un verrou pour ne pas avancer plusieurs fois
       setTimeout(()=>{
         if(!tutoMode){tutoValidating=false;return}
-        if(tutoNoteIndex>=tutoNotes.length-1){
+        const nextIdx=tutoNoteIndex+1;
+        // Fin de boucle active → revenir au début de la boucle
+        if(loopState==='active'&&nextIdx>loopEndIdx){
+          jumpToTutoIndex(loopStartIdx);
+          setTimeout(()=>{tutoValidating=false},300);
+          return;
+        }
+        // Fin du morceau (ou fin de boucle si pas en mode boucle)
+        if(nextIdx>=tutoNotes.length){
           document.getElementById('tuto-status').textContent='🎉 Bravo !';
           document.getElementById('tuto-note').textContent='🎉';
           tutoValidating=false;return;
         }
-        jumpToTutoIndex(tutoNoteIndex+1);
-        // Libère le verrou après le délai de la note suivante
+        jumpToTutoIndex(nextIdx);
         setTimeout(()=>{tutoValidating=false},300);
       },350);
     }else if(matched.length<requiredMatches&&!tutoValidating){
+      // Comptabiliser les erreurs
+      tutoStats.attempts++;
+      expected.filter(em=>!detected.some(dm=>dm===em)).forEach(m=>{
+        const nm=midiToName(m);
+        tutoStats.mistakes[nm]=(tutoStats.mistakes[nm]||0)+1;
+      });
       const missing=expected.filter(em=>!detected.some(dm=>dm===em)).map(midiToName).join(', ');
       document.getElementById('tuto-feedback').textContent='❌';
       document.getElementById('tuto-status').textContent='Manque : '+missing;
@@ -1040,7 +1218,7 @@ function tutoTick(){
     if(!tutoValidating){
       document.getElementById('tuto-feedback').textContent='🎵';
       document.getElementById('tuto-status').textContent='⏳ En attente…';
-      document.getElementById('tuto-status').style.background='#1a1a3a';
+      document.getElementById('tuto-status').style.background='var(--bg4)';
       document.getElementById('tuto-status').style.borderColor='#e67e22';
     }
   }
@@ -1229,10 +1407,21 @@ function makeSongCard(song){
 function renderLibrary(){
   const cl=document.getElementById('composers-list');
   cl.innerHTML='';
-  const composers=getComposers();
+  let composers=getComposers();
+
+  // Filtre recherche
+  if(searchQuery){
+    composers=composers.map(comp=>({
+      ...comp,
+      songs:comp.songs.filter(s=>
+        s.title.toLowerCase().includes(searchQuery)||
+        (s.composer||'').toLowerCase().includes(searchQuery)
+      )
+    })).filter(comp=>comp.songs.length>0||comp.name.toLowerCase().includes(searchQuery));
+  }
 
   if(composers.length===0){
-    cl.innerHTML='<div class="empty-msg">Aucun morceau dans la bibliothèque.<br>Importez un fichier MIDI ou ajoutez des morceaux dans <b>midi/list.json</b>.</div>';
+    cl.innerHTML='<div class="empty-msg">Aucun résultat.</div>';
     return;
   }
 
@@ -1728,19 +1917,92 @@ async function init(){
   }
 }
 
+// ── Boucle tuto ──
+function onLoopBtn(){
+  if(!tutoMode)return;
+  if(loopState==='off'){
+    // 1er clic : marquer le début
+    loopStartIdx=tutoNoteIndex;
+    loopEndIdx=-1;
+    loopState='recording_start';
+    const lb=document.getElementById('loop-btn');
+    lb.className='recording';lb.title='Cliquer pour marquer la fin';
+  }else if(loopState==='recording_start'){
+    // 2e clic : marquer la fin (doit être après le début)
+    loopEndIdx=Math.max(tutoNoteIndex,loopStartIdx);
+    loopState='active';
+    const lb=document.getElementById('loop-btn');
+    lb.className='active';lb.title='Boucle active — cliquer pour arrêter';
+    // Revenir au début de la boucle
+    jumpToTutoIndex(loopStartIdx);
+  }else{
+    // 3e clic : désactiver
+    loopState='off';loopStartIdx=0;loopEndIdx=-1;
+    const lb=document.getElementById('loop-btn');
+    lb.className='';lb.title='Boucle';
+  }
+}
+
+// ── Stats ──
+function showStats(){
+  const total=tutoStats.attempts;
+  const ok=tutoStats.successes;
+  const score=total>0?Math.round(ok/total*100):0;
+  const elapsed=Math.round((Date.now()-tutoStats.startTime)/1000);
+  document.getElementById('stat-score').textContent=score+'%';
+  document.getElementById('stat-notes').textContent=ok+'/'+total;
+  document.getElementById('stat-time').textContent=fmt(elapsed);
+
+  const mistakes=Object.entries(tutoStats.mistakes)
+    .sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const mEl=document.getElementById('stat-mistakes');
+  if(mistakes.length>0){
+    mEl.innerHTML='<b>Notes les plus ratées :</b><br>'+
+      mistakes.map(([n,c])=>`${n} (${c}×)`).join(' · ');
+  }else{
+    mEl.innerHTML='🎉 Aucune erreur !';
+  }
+  document.getElementById('stats-modal').classList.add('open');
+}
+
+function closeStats(){
+  document.getElementById('stats-modal').classList.remove('open');
+}
+
+function retryTuto(){
+  closeStats();
+  // Relancer le mode tuto avec la même main
+  tutoStats={attempts:0,successes:0,startTime:Date.now(),mistakes:{}};
+  loopState='off';loopStartIdx=0;loopEndIdx=-1;
+  buildTutoNotes();
+  tutoNoteIndex=0;
+  jumpToTutoIndex(0);
+  tutoMode=true;tutoActive=true;
+  startMic();
+  const btn=document.getElementById('tuto-toggle');
+  btn.textContent='⏹';btn.className='stop';
+  document.getElementById('tuto-bar').style.display='flex';
+  document.getElementById('play-btn').classList.add('disabled');
+  const lb=document.getElementById('loop-btn');
+  lb.style.display='flex';lb.className='';
+}
 document.addEventListener('touchstart',()=>ensureAudio(),{once:true});
 document.addEventListener('click',()=>ensureAudio(),{once:true});
 
-// Bouton tuto via addEventListener (plus fiable sur iOS Safari PWA)
-document.getElementById('tuto-toggle').addEventListener('click', toggleTutoMode);
-document.getElementById('hand-cancel-btn').addEventListener('click', closeHandModal);
+document.getElementById('tuto-toggle').addEventListener('click',toggleTutoMode);
+document.getElementById('loop-btn').addEventListener('click',onLoopBtn);
+document.getElementById('hand-cancel-btn').addEventListener('click',closeHandModal);
 document.getElementById('hand-modal').querySelectorAll('.hand-btn').forEach(btn=>{
-  btn.addEventListener('click', e=>{
+  btn.addEventListener('click',()=>{
     const hand=btn.getAttribute('data-hand');
     if(hand)startTutoWithHand(hand);
   });
 });
+document.getElementById('stats-close-btn').addEventListener('click',closeStats);
+document.getElementById('stats-retry-btn').addEventListener('click',retryTuto);
+document.getElementById('theme-btn').addEventListener('click',toggleTheme);
 
+initTheme();
 init();
 </script>
 </body>
