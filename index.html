@@ -908,12 +908,11 @@ function midiToName(m){return NOTE_NAMES[m%12]+Math.floor(m/12-1)}
 function freqToMidi(f){return Math.round(12*Math.log2(f/440)+69)}
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12)}
 
-// ── Nouvelle détection : énergie par note MIDI + filtre harmoniques ──
+// ── Détection de notes : domaine dB + correction d'octave ──
 function detectChord(){
   if(!micAnalyser)return[];
 
   if(!micAnalyser._fftBuf){
-    micAnalyser.fftSize=16384;
     micAnalyser._fftBuf=new Float32Array(micAnalyser.frequencyBinCount);
     micAnalyser._timeBuf=new Float32Array(micAnalyser.fftSize);
   }
@@ -926,43 +925,44 @@ function detectChord(){
   if(rms<MIC_RMS_GATE)return[];
 
   micAnalyser.getFloatFrequencyData(micAnalyser._fftBuf);
-  const buf=micAnalyser._fftBuf;
+  const buf=micAnalyser._fftBuf; // valeurs en dB (Float32, typiquement -150..0)
   const sr=audioCtx.sampleRate;
   const binHz=sr/micAnalyser.fftSize;
 
-  // Pour chaque note MIDI, calcule l'énergie dans une fenêtre ±6%
-  const midiEnergy=new Float32Array(88); // MIDI 21..108
+  // ── Étape 1 : énergie par note MIDI en dB ──
+  // On prend le MAX des bins dans la fenêtre (pas la somme) → résistant au bruit
+  const midiDb=new Float32Array(88).fill(-200);
   for(let m=21;m<=108;m++){
     const f=midiToFreq(m);
-    const fLo=f*0.94, fHi=f*1.06;
-    const bLo=Math.max(1,Math.floor(fLo/binHz));
-    const bHi=Math.min(micAnalyser.frequencyBinCount-1,Math.ceil(fHi/binHz));
-    let e=0;
-    for(let b=bLo;b<=bHi;b++)e+=Math.pow(10,buf[b]/10);
-    midiEnergy[m-21]=e;
+    // Fenêtre serrée ±4% (≈ ±0.7 demi-ton) pour éviter la contamination voisine
+    const bLo=Math.max(1,Math.floor(f*0.96/binHz));
+    const bHi=Math.min(micAnalyser.frequencyBinCount-1,Math.ceil(f*1.04/binHz));
+    let peak=-200;
+    for(let b=bLo;b<=bHi;b++)if(buf[b]>peak)peak=buf[b];
+    midiDb[m-21]=peak;
   }
 
-  // Max global
-  let maxE=0;
-  for(let i=0;i<midiEnergy.length;i++)if(midiEnergy[i]>maxE)maxE=midiEnergy[i];
-  if(maxE<=0)return[];
+  // Max global en dB
+  let maxDb=-200;
+  for(let i=0;i<midiDb.length;i++)if(midiDb[i]>maxDb)maxDb=midiDb[i];
+  if(maxDb<-120)return[];
 
-  // Seuil : 8% de l'énergie max (au lieu de 20%) — beaucoup plus strict
-  const thr=maxE*0.08;
+  // ── Étape 2 : seuil strict en dB ──
+  // On ne garde que les notes à moins de DB_THRESHOLD dB du max
+  const DB_THRESHOLD=15; // 15 dB sous le max → ≈ rapport amplitude ×5.6
+  const thr=maxDb-DB_THRESHOLD;
 
   // Maxima locaux au-dessus du seuil
   const candidates=[];
-  for(let i=1;i<midiEnergy.length-1;i++){
-    if(midiEnergy[i]>=thr &&
-       midiEnergy[i]>=midiEnergy[i-1] &&
-       midiEnergy[i]>=midiEnergy[i+1]){
-      candidates.push({midi:i+21, e:midiEnergy[i]});
+  for(let i=1;i<midiDb.length-1;i++){
+    if(midiDb[i]>=thr&&midiDb[i]>=midiDb[i-1]&&midiDb[i]>=midiDb[i+1]){
+      candidates.push({midi:i+21,db:midiDb[i]});
     }
   }
+  if(!candidates.length)return[];
 
-  // Filtrer harmoniques : retirer les notes dont la fréquence est un multiple
-  // d'une note plus forte déjà retenue
-  candidates.sort((a,b)=>b.e-a.e);
+  // ── Étape 3 : filtrage harmoniques strict ──
+  candidates.sort((a,b)=>b.db-a.db);
   const kept=[];
   for(const c of candidates){
     const fc=midiToFreq(c.midi);
@@ -970,8 +970,10 @@ function detectChord(){
     for(const k of kept){
       const fk=midiToFreq(k.midi);
       const ratio=fc/fk;
-      for(const h of[2,3,4,5,0.5,1/3,1/4]){
-        if(Math.abs(ratio-h)<h*0.07){isHarmonic=true;break}
+      // Harmoniques exactes : 2x, 3x, 4x, 5x et sous-harmoniques 1/2
+      // Tolérance réduite à 5% pour être plus strict
+      for(const h of[2,3,4,5,6,0.5]){
+        if(Math.abs(ratio-h)<h*0.05){isHarmonic=true;break}
       }
       if(isHarmonic)break;
     }
@@ -979,7 +981,29 @@ function detectChord(){
     if(kept.length>=MAX_DETECTED_NOTES)break;
   }
 
-  return kept.map(c=>c.midi).sort((a,b)=>a-b);
+  // ── Étape 4 : correction d'octave ──
+  // Si on a détecté Do3, vérifier si Do2 (1/2 de la fréquence) a aussi de l'énergie
+  // significative (> thr - 6dB). Si oui, Do2 est probablement la vraie fondamentale.
+  const corrected=kept.map(c=>{
+    const sub=c.midi-12; // une octave en dessous
+    if(sub>=21&&sub<=108){
+      const subDb=midiDb[sub-21];
+      // Si la sous-octave est > seuil - 6dB, c'est probablement la fondamentale
+      if(subDb>thr-6){
+        return{midi:sub,db:subDb};
+      }
+    }
+    return c;
+  });
+
+  // Dédupliquer après correction (si deux notes convergent vers la même)
+  const seen=new Set();
+  const final=[];
+  for(const c of corrected){
+    if(!seen.has(c.midi)){seen.add(c.midi);final.push(c.midi)}
+  }
+
+  return final.sort((a,b)=>a-b);
 }
 
 async function startMic(){
@@ -1042,6 +1066,7 @@ let tutoHand='both';
 
 // Stats
 let tutoStats={attempts:0,successes:0,startTime:0,mistakes:{}};
+let tutoNoteHadError=false,tutoLastErrorTime=0;
 
 // Boucle : off → recording_start → recording_end → active → off
 let loopState='off',loopStartIdx=0,loopEndIdx=-1;
@@ -1111,6 +1136,7 @@ function jumpToTutoIndex(index){
   // Mais la tuto bar au dessus réduit le roll, donc on ajuste avec un petit offset fixe
   const noteTime=tutoNotes[tutoNoteIndex].start+INTRO;
   currentTime=Math.max(0, noteTime-0.5);
+  tutoNoteHadError=false;
   lastTS=null;clearScheduled();
   stopFlash();startFlash(tutoNotes[tutoNoteIndex].midis);
   updateTutoUI();
@@ -1174,7 +1200,10 @@ function tutoTick(){
 
     if(matched.length>=requiredMatches&&!tutoValidating){
       tutoValidating=true;
-      tutoStats.attempts++;tutoStats.successes++;
+      // Stats : compter comme succès seulement si pas déjà raté cette note
+      if(!tutoNoteHadError){tutoStats.successes++;}
+      tutoStats.attempts++;
+      tutoNoteHadError=false;
       document.getElementById('tuto-feedback').textContent='✅';
       document.getElementById('tuto-status').textContent='✅ Parfait !';
       document.getElementById('tuto-status').style.background='#1a4a1a';
@@ -1184,13 +1213,11 @@ function tutoTick(){
       setTimeout(()=>{
         if(!tutoMode){tutoValidating=false;return}
         const nextIdx=tutoNoteIndex+1;
-        // Fin de boucle active → revenir au début de la boucle
         if(loopState==='active'&&nextIdx>loopEndIdx){
           jumpToTutoIndex(loopStartIdx);
           setTimeout(()=>{tutoValidating=false},300);
           return;
         }
-        // Fin du morceau (ou fin de boucle si pas en mode boucle)
         if(nextIdx>=tutoNotes.length){
           document.getElementById('tuto-status').textContent='🎉 Bravo !';
           document.getElementById('tuto-note').textContent='🎉';
@@ -1200,12 +1227,16 @@ function tutoTick(){
         setTimeout(()=>{tutoValidating=false},300);
       },350);
     }else if(matched.length<requiredMatches&&!tutoValidating){
-      // Comptabiliser les erreurs
-      tutoStats.attempts++;
-      expected.filter(em=>!detected.some(dm=>dm===em)).forEach(m=>{
-        const nm=midiToName(m);
-        tutoStats.mistakes[nm]=(tutoStats.mistakes[nm]||0)+1;
-      });
+      // Une seule erreur comptée par note, avec cooldown 800ms
+      const now=Date.now();
+      if(!tutoNoteHadError||(now-tutoLastErrorTime>800)){
+        tutoNoteHadError=true;
+        tutoLastErrorTime=now;
+        expected.filter(em=>!detected.some(dm=>dm===em)).forEach(m=>{
+          const nm=midiToName(m);
+          tutoStats.mistakes[nm]=(tutoStats.mistakes[nm]||0)+1;
+        });
+      }
       const missing=expected.filter(em=>!detected.some(dm=>dm===em)).map(midiToName).join(', ');
       document.getElementById('tuto-feedback').textContent='❌';
       document.getElementById('tuto-status').textContent='Manque : '+missing;
