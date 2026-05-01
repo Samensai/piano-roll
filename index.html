@@ -96,12 +96,15 @@ body{
   transition:background .4s,border-color .4s;flex-shrink:0;
 }
 #video-btn{
-  width:32px;height:32px;border-radius:9px;border:1px solid var(--border2);
-  background:var(--bg4);font-size:15px;
-  display:flex;align-items:center;justify-content:center;
-  transition:background .4s,border-color .4s;flex-shrink:0;
-  text-decoration:none;
+  padding:0 10px;height:32px;border-radius:9px;
+  border:1px solid rgba(74,222,128,.35);
+  background:rgba(74,222,128,.12);
+  font-size:12px;font-weight:700;color:#4ade80;
+  display:flex;align-items:center;gap:5px;
+  transition:background .2s,border-color .2s;flex-shrink:0;
+  text-decoration:none;white-space:nowrap;
 }
+#video-btn:hover{background:rgba(74,222,128,.22)}
 
 /* Search bar */
 #search-wrap{padding:10px 20px 0;flex-shrink:0}
@@ -452,7 +455,7 @@ input[type=file]{display:none}
 <div id="status-bar"></div>
 <div id="app-header">
   <span class="logo">🎹 Piano Tuto</span>
-  <a href="./tuto-video.html" id="video-btn" title="Export Vidéo">🎬</a>
+  <a href="./tuto-video.html" id="video-btn" title="Créer une vidéo tuto à partir d'un fichier MIDI">🎬 Vidéo</a>
   <button id="theme-btn" title="Changer le thème">☀️</button>
 </div>
 
