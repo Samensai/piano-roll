@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Piano Tuto — Export Vidéo</title>
+<!-- webm-muxer : conteneur WebM pour WebCodecs (VP9 + Opus) -->
+<script src="https://cdn.jsdelivr.net/npm/webm-muxer@5/dist/webm-muxer.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
@@ -11,15 +13,12 @@ html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
 
 /* ── Upload ── */
 #upload-screen{
-  min-height:100vh;display:flex;flex-direction:column;align-items:center;
-  padding:24px 20px;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 20px;
 }
 #upload-header{
   width:100%;max-width:480px;display:flex;align-items:center;gap:12px;margin-bottom:48px;
 }
-#upload-header a{
-  color:#4a9fff;font-size:22px;text-decoration:none;padding:2px 6px;
-}
+#upload-header a{color:#4a9fff;font-size:22px;text-decoration:none;padding:2px 6px}
 #upload-header h1{
   font-size:18px;font-weight:800;
   background:linear-gradient(135deg,#4a9fff,#4ade80);
@@ -38,9 +37,8 @@ html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
 #browse-btn{
   padding:12px 32px;background:linear-gradient(135deg,#1a3a6a,#0f2a50);
   color:#4a9fff;border:1px solid #2a4a7a;border-radius:12px;
-  font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s;
+  font-size:14px;font-weight:600;cursor:pointer;
 }
-#browse-btn:hover{opacity:.85}
 .drop-hint{font-size:11px;color:#3a3a5a;margin-top:16px}
 
 /* ── Ready ── */
@@ -50,53 +48,35 @@ html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
 .screen-header{
   width:100%;max-width:440px;display:flex;align-items:center;gap:10px;margin-bottom:28px;
 }
-.back-btn{
-  background:none;border:none;color:#4a9fff;font-size:24px;cursor:pointer;padding:2px 6px;
-  flex-shrink:0;
-}
-.screen-title{font-size:15px;font-weight:700;color:#e8e8f0}
-
+.back-btn{background:none;border:none;color:#4a9fff;font-size:24px;cursor:pointer;padding:2px 6px;flex-shrink:0}
+.screen-title{font-size:15px;font-weight:700}
 .song-card{
-  width:100%;max-width:440px;
-  background:linear-gradient(135deg,#141428,#1a1a35);
+  width:100%;max-width:440px;background:linear-gradient(135deg,#141428,#1a1a35);
   border:1px solid #252545;border-radius:20px;
   padding:28px 24px;margin-bottom:20px;
   display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
 }
 .song-card-icon{font-size:46px}
-.song-card-title{font-size:20px;font-weight:800;color:#e8e8f0;word-break:break-word}
+.song-card-title{font-size:20px;font-weight:800;word-break:break-word}
 .song-card-meta{font-size:13px;color:#5a5a7a}
-
 .action-btns{width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px}
 .action-btn{
   padding:16px;border-radius:16px;border:none;
   font-size:16px;font-weight:700;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  transition:opacity .2s;
+  display:flex;align-items:center;justify-content:center;gap:10px;transition:opacity .2s;
 }
 .action-btn:active{opacity:.75}
-.btn-visualize{
-  background:linear-gradient(135deg,#1a3a6a,#0f2a50);
-  color:#4a9fff;border:1px solid #2a4a7a;
-}
-.btn-download{
-  background:linear-gradient(135deg,#1a4a1a,#0f3010);
-  color:#4ade80;border:1px solid #2a6a2a;
-}
+.btn-visualize{background:linear-gradient(135deg,#1a3a6a,#0f2a50);color:#4a9fff;border:1px solid #2a4a7a}
+.btn-download{background:linear-gradient(135deg,#1a4a1a,#0f3010);color:#4ade80;border:1px solid #2a6a2a}
 .btn-icon{font-size:18px}
 
 /* ── Player ── */
-#player-screen{
-  height:100vh;display:flex;flex-direction:column;overflow:hidden;
-}
+#player-screen{height:100vh;display:flex;flex-direction:column;overflow:hidden}
 #player-nav{
   padding:8px 12px;display:flex;align-items:center;gap:8px;
   background:#0e0e20;border-bottom:1px solid #1a1a35;flex-shrink:0;
 }
-#player-nav-title{
-  flex:1;font-size:13px;font-weight:600;color:#e8e8f0;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
+#player-nav-title{flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #speed-lbl{font-size:9px;color:#5a5a7a;white-space:nowrap;flex-shrink:0}
 #speed-slider{width:56px;accent-color:#4a9fff;flex-shrink:0}
 #player-rec-btn{
@@ -106,7 +86,6 @@ html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
 }
 #player-canvas-wrap{flex:1;overflow:hidden;background:#0c0c1e}
 #player-canvas{display:block}
-
 #ctrl-bar{
   padding:8px 14px;display:flex;align-items:center;gap:10px;
   background:#0e0e20;border-top:1px solid #1a1a35;flex-shrink:0;
@@ -119,20 +98,13 @@ html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
   font-size:14px;color:#4a9fff;cursor:pointer;flex-shrink:0;
 }
 #restart-btn{font-size:14px;color:#5a5a7a;padding:3px 6px;cursor:pointer;flex-shrink:0}
-#seek-bar{
-  flex:1;height:5px;background:#1a1a35;border-radius:3px;
-  cursor:pointer;position:relative;
-}
-#seek-fill{
-  height:100%;width:0%;background:linear-gradient(90deg,#4a9fff,#4ade80);
-  border-radius:3px;pointer-events:none;
-}
+#seek-bar{flex:1;height:5px;background:#1a1a35;border-radius:3px;cursor:pointer;position:relative}
+#seek-fill{height:100%;width:0%;background:linear-gradient(90deg,#4a9fff,#4ade80);border-radius:3px;pointer-events:none}
 #time-lbl{font-size:10px;color:#5a5a7a;min-width:65px;text-align:right;white-space:nowrap}
 
-/* ── Export ── */
+/* ── Export (fallback temps réel) ── */
 #export-screen{
-  height:100vh;display:flex;flex-direction:column;align-items:center;
-  background:#080810;overflow:hidden;
+  height:100vh;display:flex;flex-direction:column;align-items:center;background:#080810;overflow:hidden;
 }
 #export-nav{
   width:100%;padding:8px 14px;display:flex;align-items:center;gap:10px;
@@ -140,42 +112,52 @@ html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
 }
 #export-cancel{
   padding:6px 12px;background:transparent;color:#5a5a7a;
-  border:1px solid #252545;border-radius:9px;
-  font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;
+  border:1px solid #252545;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;
 }
-#export-nav-title{
-  flex:1;font-size:13px;font-weight:600;color:#e8e8f0;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
+#export-nav-title{flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rec-badge{
   font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;
-  background:rgba(248,113,113,.18);color:#f87171;
-  border:1px solid rgba(248,113,113,.45);
+  background:rgba(248,113,113,.18);color:#f87171;border:1px solid rgba(248,113,113,.45);
   animation:blink .8s ease-in-out infinite alternate;flex-shrink:0;
 }
 @keyframes blink{from{opacity:.55}to{opacity:1}}
-
 #export-canvas-wrap{
   flex:1;width:100%;display:flex;align-items:center;justify-content:center;
   padding:12px;overflow:hidden;
 }
-#export-canvas{
-  max-width:100%;max-height:100%;
-  border-radius:6px;border:1px solid #1a1a35;
-  display:block;
-}
+#export-canvas{max-width:100%;max-height:100%;border-radius:6px;border:1px solid #1a1a35;display:block}
 #export-bottom{
   width:100%;padding:14px 20px;background:#0e0e20;border-top:1px solid #1a1a35;
   flex-shrink:0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
 }
 #export-progress-wrap{height:5px;background:#1a1a35;border-radius:3px;overflow:hidden;margin-bottom:8px}
-#export-progress-bar{
-  height:100%;width:0%;
-  background:linear-gradient(90deg,#f87171,#fbbf24);
-  border-radius:3px;transition:width .25s linear;
-}
+#export-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#f87171,#fbbf24);border-radius:3px;transition:width .25s linear}
 #export-time-lbl{font-size:11px;color:#5a5a7a;text-align:center}
 #export-hint{font-size:10px;color:#3a3a5a;text-align:center;margin-top:4px}
+
+/* ── Fast Export (WebCodecs) ── */
+#fast-export-screen{
+  height:100vh;display:flex;flex-direction:column;background:#0a0a1a;
+}
+#fe-nav{
+  padding:8px 14px;display:flex;align-items:center;gap:10px;
+  background:#0e0e20;border-bottom:1px solid #1a1a35;flex-shrink:0;
+}
+#fe-cancel{
+  padding:6px 12px;background:transparent;color:#5a5a7a;
+  border:1px solid #252545;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;
+}
+#fe-nav-title{flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#fe-body{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;padding:32px 24px;
+}
+.fe-icon{font-size:52px}
+#fe-status{font-size:15px;font-weight:600;color:#a0c4ff;text-align:center}
+#fe-progress-wrap{width:100%;max-width:360px;height:6px;background:#1a1a35;border-radius:3px;overflow:hidden}
+#fe-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#4a9fff,#4ade80);border-radius:3px;transition:width .15s}
+#fe-pct{font-size:13px;color:#5a5a7a}
+#fe-hint{font-size:11px;color:#3a3a5a;text-align:center;max-width:300px;line-height:1.6}
 
 /* ── Loading overlay ── */
 #loading-overlay{
@@ -183,11 +165,7 @@ html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
   display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;
   backdrop-filter:blur(4px);
 }
-.spinner{
-  width:38px;height:38px;border:3px solid #1a1a35;
-  border-top-color:#4a9fff;border-radius:50%;
-  animation:spin .7s linear infinite;
-}
+.spinner{width:38px;height:38px;border:3px solid #1a1a35;border-top-color:#4a9fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #loading-msg{font-size:13px;color:#a0c4ff}
 
@@ -198,7 +176,6 @@ input[type=range]{height:16px}
 </head>
 <body>
 
-<!-- Loading overlay -->
 <div id="loading-overlay">
   <div class="spinner"></div>
   <div id="loading-msg">Chargement des sons…</div>
@@ -262,7 +239,7 @@ input[type=range]{height:16px}
   </div>
 </div>
 
-<!-- Export -->
+<!-- Export fallback (MediaRecorder, temps réel) -->
 <div id="export-screen" class="hidden">
   <div id="export-nav">
     <button id="export-cancel">✕ Annuler</button>
@@ -276,6 +253,21 @@ input[type=range]{height:16px}
     <div id="export-progress-wrap"><div id="export-progress-bar"></div></div>
     <div id="export-time-lbl">0:00 / 0:00</div>
     <div id="export-hint">Gardez cet onglet actif pendant l'enregistrement</div>
+  </div>
+</div>
+
+<!-- Fast Export (WebCodecs) -->
+<div id="fast-export-screen" class="hidden">
+  <div id="fe-nav">
+    <button id="fe-cancel">✕ Annuler</button>
+    <span id="fe-nav-title">—</span>
+  </div>
+  <div id="fe-body">
+    <div class="fe-icon">🎬</div>
+    <div id="fe-status">Préparation…</div>
+    <div id="fe-progress-wrap"><div id="fe-progress-bar"></div></div>
+    <div id="fe-pct">0%</div>
+    <div id="fe-hint">Le rendu s'effectue en accéléré.<br>Le fichier se téléchargera automatiquement.</div>
   </div>
 </div>
 
@@ -318,10 +310,8 @@ function parseMidi(buf){
     tm.push({tick:e.tick,tempo:e.val,sec:l.sec+(e.tick-l.tick)/tpqn*(l.tempo/1e6)});
   });
   const t2s=tick=>{
-    let i=tm.length-1;
-    while(i>0&&tm[i].tick>tick)i--;
-    const t=tm[i];
-    return t.sec+(tick-t.tick)/tpqn*(t.tempo/1e6);
+    let i=tm.length-1;while(i>0&&tm[i].tick>tick)i--;
+    const t=tm[i];return t.sec+(tick-t.tick)/tpqn*(t.tempo/1e6);
   };
   const parsed=[];
   tracks.forEach((evts,ti)=>{
@@ -330,10 +320,7 @@ function parseMidi(buf){
       if(e.type==='on')op[e.note+'_'+e.ch]={tick:e.tick,track:ti};
       else if(e.type==='off'){
         const k=e.note+'_'+e.ch,o=op[k];
-        if(o){
-          parsed.push({midi:e.note,start:t2s(o.tick),dur:Math.max(t2s(e.tick)-t2s(o.tick),.05),track:ti});
-          delete op[k];
-        }
+        if(o){parsed.push({midi:e.note,start:t2s(o.tick),dur:Math.max(t2s(e.tick)-t2s(o.tick),.05),track:ti});delete op[k]}
       }
     });
   });
@@ -344,130 +331,126 @@ function parseMidi(buf){
 }
 
 // ═══════════════════════════════════════════════════
-// AUDIO ENGINE
+// AUDIO ENGINE (lecture temps réel)
 // ═══════════════════════════════════════════════════
 let audioCtx=null, masterGain=null;
 const sampleBuffers={};
-let scheduledKeys={};
-let samplerReady=false;
+let scheduledKeys={}, samplerReady=false;
 
-const SAMPLE_MAP={
-  21:'A0',24:'C1',33:'A1',36:'C2',45:'A2',48:'C3',57:'A3',60:'C4',
-  69:'A4',72:'C5',81:'A5',84:'C6',93:'A6',96:'C7',105:'A7',108:'C8'
-};
+const SAMPLE_MAP={21:'A0',24:'C1',33:'A1',36:'C2',45:'A2',48:'C3',57:'A3',60:'C4',
+  69:'A4',72:'C5',81:'A5',84:'C6',93:'A6',96:'C7',105:'A7',108:'C8'};
 const rawSampleBuffers={};
 let rawSamplesLoaded=false;
 const SAMP_URL='./samples/';
 
 async function loadRawSamples(){
-  const keys=Object.keys(SAMPLE_MAP);
-  let loaded=0;
+  const keys=Object.keys(SAMPLE_MAP);let loaded=0;
   for(const midi of keys){
     try{
       const resp=await fetch(SAMP_URL+SAMPLE_MAP[midi]+'.mp3',{cache:'force-cache'});
       if(!resp.ok)throw 0;
       rawSampleBuffers[parseInt(midi)]=await resp.arrayBuffer();
     }catch(e){}
-    loaded++;
-    setLoadingMsg('Chargement des sons… '+Math.round(loaded/keys.length*100)+'%');
+    loaded++;setLoadingMsg('Chargement des sons… '+Math.round(loaded/keys.length*100)+'%');
   }
   rawSamplesLoaded=true;
 }
+async function ensureRawSamples(){if(!rawSamplesLoaded)await loadRawSamples()}
 
-async function ensureRawSamples(){
-  if(rawSamplesLoaded)return;
-  await loadRawSamples();
-}
-
-// Crée un AudioContext. forExport=true → retourne un MediaStreamDestination (pas de son enceintes)
 async function buildAudioContext(forExport=false){
   if(audioCtx){try{await audioCtx.close()}catch(e){}}
   audioCtx=null;masterGain=null;samplerReady=false;clearScheduled();
-
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();
   await audioCtx.resume();
-  masterGain=audioCtx.createGain();
-  masterGain.gain.value=0.7;
-
-  // Légère réverb
-  const irLen=audioCtx.sampleRate*1.5;
-  const ir=audioCtx.createBuffer(2,irLen,audioCtx.sampleRate);
-  for(let c=0;c<2;c++){
-    const d=ir.getChannelData(c);
-    for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,3)*0.4;
-  }
+  masterGain=audioCtx.createGain();masterGain.gain.value=0.7;
+  const irLen=audioCtx.sampleRate*1.5,ir=audioCtx.createBuffer(2,irLen,audioCtx.sampleRate);
+  for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,3)*0.4}
   const conv=audioCtx.createConvolver();conv.buffer=ir;
   const revGain=audioCtx.createGain();revGain.gain.value=0.12;
   masterGain.connect(conv);conv.connect(revGain);
-
   let audioDest=null;
   if(forExport){
     audioDest=audioCtx.createMediaStreamDestination();
-    masterGain.connect(audioDest);
-    revGain.connect(audioDest);
+    masterGain.connect(audioDest);revGain.connect(audioDest);
   }else{
-    masterGain.connect(audioCtx.destination);
-    revGain.connect(audioCtx.destination);
+    masterGain.connect(audioCtx.destination);revGain.connect(audioCtx.destination);
   }
-
   for(const midi of Object.keys(rawSampleBuffers)){
-    try{
-      const copy=rawSampleBuffers[parseInt(midi)].slice(0);
-      sampleBuffers[parseInt(midi)]=await audioCtx.decodeAudioData(copy);
-    }catch(e){}
+    try{sampleBuffers[parseInt(midi)]=await audioCtx.decodeAudioData(rawSampleBuffers[parseInt(midi)].slice(0))}catch(e){}
   }
-  samplerReady=true;
-  return audioDest;
+  samplerReady=true;return audioDest;
 }
 
-function getNearestSample(m){
+function nearestKey(dict,m){
   let best=null,bd=999;
-  for(const k of Object.keys(sampleBuffers)){const dist=Math.abs(parseInt(k)-m);if(dist<bd){bd=dist;best=parseInt(k)}}
+  for(const k of Object.keys(dict)){const d=Math.abs(parseInt(k)-m);if(d<bd){bd=d;best=parseInt(k)}}
   return best;
 }
 
 function playSample(midi,when,dur){
   if(!samplerReady||!audioCtx||!masterGain)return;
-  const nm=getNearestSample(midi);if(nm===null)return;
+  const nm=nearestKey(sampleBuffers,midi);if(nm===null)return;
   const buf=sampleBuffers[nm];if(!buf)return;
-  const safeDur=Math.max(dur,0.08);
-  const src=audioCtx.createBufferSource();
-  src.buffer=buf;src.playbackRate.value=Math.pow(2,(midi-nm)/12);
+  const safeDur=Math.max(dur,0.08),relT=midi<48?1.4:0.8;
+  const src=audioCtx.createBufferSource();src.buffer=buf;src.playbackRate.value=Math.pow(2,(midi-nm)/12);
   const g=audioCtx.createGain();
-  const relT=midi<48?1.4:0.8;
-  g.gain.setValueAtTime(0.9,when);
-  g.gain.setValueAtTime(0.9,when+Math.max(safeDur-0.05,0.02));
+  g.gain.setValueAtTime(0.9,when);g.gain.setValueAtTime(0.9,when+Math.max(safeDur-0.05,0.02));
   g.gain.exponentialRampToValueAtTime(0.0001,when+safeDur+relT);
-  src.connect(g);g.connect(masterGain);
-  src.start(when);src.stop(when+safeDur+relT+0.1);
+  src.connect(g);g.connect(masterGain);src.start(when);src.stop(when+safeDur+relT+0.1);
 }
 
 const LOOK_AHEAD=0.3;
 function scheduleAudio(){
   if(!samplerReady||!playing)return;
-  const now=audioCtx.currentTime;
-  const winEnd=currentTime+LOOK_AHEAD;
+  const now=audioCtx.currentTime,winEnd=currentTime+LOOK_AHEAD;
   notes.forEach(n=>{
     const nt=n.start+INTRO;
     if(nt>=currentTime&&nt<winEnd){
       const k=n.midi+'_'+n.start.toFixed(3);
       if(!scheduledKeys[k]){
         const when=now+(nt-currentTime)/speed;
-        if(when>=now-0.01){
-          playSample(n.midi,Math.max(now,when),n.dur/speed);
-          scheduledKeys[k]=true;
-          setTimeout(()=>delete scheduledKeys[k],(n.dur/speed+2)*1000);
-        }
+        if(when>=now-0.01){playSample(n.midi,Math.max(now,when),n.dur/speed);scheduledKeys[k]=true;setTimeout(()=>delete scheduledKeys[k],(n.dur/speed+2)*1000)}
       }
     }
   });
 }
 function clearScheduled(){scheduledKeys={}}
+function closeAudio(){playing=false;clearScheduled();if(audioCtx){audioCtx.close().catch(()=>{})}audioCtx=null;masterGain=null;samplerReady=false}
 
-function closeAudio(){
-  playing=false;clearScheduled();
-  if(audioCtx){audioCtx.close().catch(()=>{})}
-  audioCtx=null;masterGain=null;samplerReady=false;
+// ═══════════════════════════════════════════════════
+// PRÉ-RENDU AUDIO HORS-LIGNE (pour export rapide)
+// ═══════════════════════════════════════════════════
+async function renderAudioOffline(){
+  const SR=48000; // taux Opus standard
+  const dur=totalDuration+INTRO+1.5;
+  const ctx=new OfflineAudioContext(2,Math.ceil(SR*dur),SR);
+
+  // Décoder les samples dans le contexte hors-ligne
+  const offSamples={};
+  for(const midi of Object.keys(rawSampleBuffers)){
+    try{offSamples[parseInt(midi)]=await ctx.decodeAudioData(rawSampleBuffers[parseInt(midi)].slice(0))}catch(e){}
+  }
+
+  const gain=ctx.createGain();gain.gain.value=0.7;
+  const irLen=Math.ceil(SR*1.5),ir=ctx.createBuffer(2,irLen,SR);
+  for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,3)*0.4}
+  const conv=ctx.createConvolver();conv.buffer=ir;
+  const rev=ctx.createGain();rev.gain.value=0.12;
+  gain.connect(conv);conv.connect(rev);
+  gain.connect(ctx.destination);rev.connect(ctx.destination);
+
+  notes.forEach(n=>{
+    const when=n.start+INTRO,nm=nearestKey(offSamples,n.midi);
+    if(nm===null)return;const buf=offSamples[nm];if(!buf)return;
+    const safeDur=Math.max(n.dur,0.08),relT=n.midi<48?1.4:0.8;
+    const src=ctx.createBufferSource();src.buffer=buf;src.playbackRate.value=Math.pow(2,(n.midi-nm)/12);
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.9,when);g.gain.setValueAtTime(0.9,when+Math.max(safeDur-0.05,0.02));
+    g.gain.exponentialRampToValueAtTime(0.0001,when+safeDur+relT);
+    src.connect(g);g.connect(gain);src.start(when);src.stop(when+safeDur+relT+0.1);
+  });
+
+  return ctx.startRendering();
 }
 
 // ═══════════════════════════════════════════════════
@@ -479,130 +462,257 @@ let _layout=null,_lw=0;
 
 function getLayout(w){
   if(_layout&&_lw===w)return _layout;
-  const whites=[];
-  for(let m=MIDI_MIN;m<=MIDI_MAX;m++)if(!isBlack(m))whites.push(m);
+  const whites=[];for(let m=MIDI_MIN;m<=MIDI_MAX;m++)if(!isBlack(m))whites.push(m);
   const ww=w/whites.length,L=new Array(TOTAL_KEYS);
   whites.forEach((m,i)=>L[m-MIDI_MIN]={x:i*ww,w:ww,black:false});
   for(let m=MIDI_MIN;m<=MIDI_MAX;m++){
-    if(isBlack(m)){
-      let lm=m-1;while(isBlack(lm))lm--;
-      const li=L[lm-MIDI_MIN];
-      L[m-MIDI_MIN]={x:li.x+li.w*.62,w:ww*.58,black:true};
-    }
+    if(isBlack(m)){let lm=m-1;while(isBlack(lm))lm--;const li=L[lm-MIDI_MIN];L[m-MIDI_MIN]={x:li.x+li.w*.62,w:ww*.58,black:true}}
   }
   _layout=L;_lw=w;return L;
 }
 function isBlack(m){return[1,3,6,8,10].includes(m%12)}
 
 function drawNote(ctx,x,y,w,h,color,glow){
-  if(w<=0)return;
-  y+=NOTE_GAP/2;h=Math.max(h-NOTE_GAP,3);
+  if(w<=0)return;y+=NOTE_GAP/2;h=Math.max(h-NOTE_GAP,3);
   const r=Math.min(w/2,8);h=Math.max(h,r*2+2);
   ctx.shadowBlur=14;ctx.shadowColor=glow;
   const c={r:parseInt(color.slice(1,3),16),g:parseInt(color.slice(3,5),16),b:parseInt(color.slice(5,7),16)};
   const g=ctx.createLinearGradient(x,y,x+w,y);
-  g.addColorStop(0,`rgba(${c.r+40},${c.g+40},${c.b+40},1)`);
-  g.addColorStop(.4,color);
+  g.addColorStop(0,`rgba(${c.r+40},${c.g+40},${c.b+40},1)`);g.addColorStop(.4,color);
   g.addColorStop(1,`rgba(${Math.max(c.r-30,0)},${Math.max(c.g-30,0)},${Math.max(c.b-30,0)},1)`);
-  ctx.beginPath();
-  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
   ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath();ctx.fillStyle=g;ctx.fill();ctx.shadowBlur=0;
-  ctx.beginPath();
-  ctx.moveTo(x+r,y+1);ctx.lineTo(x+w-r,y+1);ctx.quadraticCurveTo(x+w-1,y+1,x+w-1,y+r);
+  ctx.beginPath();ctx.moveTo(x+r,y+1);ctx.lineTo(x+w-r,y+1);ctx.quadraticCurveTo(x+w-1,y+1,x+w-1,y+r);
   ctx.lineTo(x+w-1,y+Math.min(h*.35,10));ctx.lineTo(x+1,y+Math.min(h*.35,10));
-  ctx.lineTo(x+1,y+r);ctx.quadraticCurveTo(x+1,y+1,x+r,y+1);
-  ctx.closePath();ctx.fillStyle='rgba(255,255,255,.18)';ctx.fill();
+  ctx.lineTo(x+1,y+r);ctx.quadraticCurveTo(x+1,y+1,x+r,y+1);ctx.closePath();ctx.fillStyle='rgba(255,255,255,.18)';ctx.fill();
 }
 
 function drawAll(ctx,t,W,H){
-  const rollH=H-PIANO_H;
-  const L=getLayout(W);
-
-  // Notes actives (pour le piano)
+  const rollH=H-PIANO_H,L=getLayout(W);
   const active={};
-  notes.forEach(n=>{
-    const nt=n.start+INTRO;
-    if(nt<=t+.02&&nt+n.dur>=t)active[n.midi]=n.hand;
-  });
-
-  // Fond du roll
+  notes.forEach(n=>{const nt=n.start+INTRO;if(nt<=t+.02&&nt+n.dur>=t)active[n.midi]=n.hand});
   ctx.fillStyle='#0c0c1e';ctx.fillRect(0,0,W,rollH);
-  for(let i=0;i<TOTAL_KEYS;i++){
-    if(L[i]&&L[i].black){ctx.fillStyle='rgba(0,0,0,.22)';ctx.fillRect(L[i].x,0,L[i].w,rollH)}
-  }
-
-  // Lignes de temps
+  for(let i=0;i<TOTAL_KEYS;i++){if(L[i]&&L[i].black){ctx.fillStyle='rgba(0,0,0,.22)';ctx.fillRect(L[i].x,0,L[i].w,rollH)}}
   ctx.strokeStyle='rgba(255,255,255,.035)';ctx.lineWidth=1;
   let bt=Math.ceil((t-.01)/.5)*.5;
-  while(bt<t+rollH/FALL_SPEED+.5){
-    const y=rollH-(bt-t)*FALL_SPEED;
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
-    bt+=.5;
-  }
-
-  // Notes (clippées au roll)
+  while(bt<t+rollH/FALL_SPEED+.5){const y=rollH-(bt-t)*FALL_SPEED;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();bt+=.5}
   ctx.save();ctx.beginPath();ctx.rect(0,MASK_H,W,rollH-MASK_H);ctx.clip();
   notes.forEach(n=>{
     const nt=n.start+INTRO,k=L[n.midi-MIDI_MIN];if(!k)return;
     const yB=rollH-(nt-t)*FALL_SPEED,yT=yB-n.dur*FALL_SPEED;
     if(yB<-20||yT>rollH+20)return;
     const right=n.hand==='right';
-    drawNote(ctx,k.x+1,yT,k.w-2,Math.max(yB-yT,4),
-      right?'#4a9fff':'#27ae60',right?'rgba(74,159,255,.7)':'rgba(39,174,96,.7)');
+    drawNote(ctx,k.x+1,yT,k.w-2,Math.max(yB-yT,4),right?'#4a9fff':'#27ae60',right?'rgba(74,159,255,.7)':'rgba(39,174,96,.7)');
   });
   ctx.shadowBlur=0;ctx.restore();
-
-  // Piano
   ctx.save();ctx.translate(0,rollH);
-  const bg=ctx.createLinearGradient(0,0,0,PIANO_H);
-  bg.addColorStop(0,'#2a2a2a');bg.addColorStop(1,'#111');
+  const bg=ctx.createLinearGradient(0,0,0,PIANO_H);bg.addColorStop(0,'#2a2a2a');bg.addColorStop(1,'#111');
   ctx.fillStyle=bg;ctx.fillRect(0,0,W,PIANO_H);
-
   for(let i=0;i<TOTAL_KEYS;i++){
     const k=L[i];if(!k||k.black)continue;
-    const midi=MIDI_MIN+i,a=active[midi];
-    const x=k.x,kw=k.w-1;
-    if(a){
-      const g=ctx.createLinearGradient(x,0,x+kw,0);
-      g.addColorStop(0,a==='right'?'#6ab8ff':'#5dd68a');
-      g.addColorStop(1,a==='right'?'#3a8fe0':'#2ebd6e');
-      ctx.fillStyle=g;
-    }else{
-      const g=ctx.createLinearGradient(x,0,x,PIANO_H);
-      g.addColorStop(0,'#fafaf8');g.addColorStop(.7,'#f0ede6');g.addColorStop(1,'#ddd9d0');
-      ctx.fillStyle=g;
-    }
+    const midi=MIDI_MIN+i,a=active[midi],x=k.x,kw=k.w-1;
+    if(a){const g=ctx.createLinearGradient(x,0,x+kw,0);g.addColorStop(0,a==='right'?'#6ab8ff':'#5dd68a');g.addColorStop(1,a==='right'?'#3a8fe0':'#2ebd6e');ctx.fillStyle=g}
+    else{const g=ctx.createLinearGradient(x,0,x,PIANO_H);g.addColorStop(0,'#fafaf8');g.addColorStop(.7,'#f0ede6');g.addColorStop(1,'#ddd9d0');ctx.fillStyle=g}
     ctx.beginPath();ctx.roundRect(x,0,kw,PIANO_H,[0,0,5,5]);ctx.fill();
     ctx.strokeStyle=a?'rgba(0,0,0,.3)':'#bbb';ctx.lineWidth=1;ctx.stroke();
     if(!a){ctx.fillStyle='rgba(255,255,255,.6)';ctx.fillRect(x+1,0,kw-2,4)}
   }
   for(let i=0;i<TOTAL_KEYS;i++){
     const k=L[i];if(!k||!k.black)continue;
-    const midi=MIDI_MIN+i,a=active[midi];
-    const x=k.x,kw=k.w,bh=PIANO_H*.63;
-    if(a){
-      const g=ctx.createLinearGradient(x,0,x+kw,0);
-      g.addColorStop(0,a==='right'?'#2a6fb8':'#1a8040');
-      g.addColorStop(1,a==='right'?'#1a4f8a':'#155a2e');
-      ctx.fillStyle=g;
-    }else{
-      const g=ctx.createLinearGradient(x,0,x,bh);
-      g.addColorStop(0,'#2a2a2a');g.addColorStop(.6,'#1a1a1a');g.addColorStop(1,'#0d0d0d');
-      ctx.fillStyle=g;
-    }
+    const midi=MIDI_MIN+i,a=active[midi],x=k.x,kw=k.w,bh=PIANO_H*.63;
+    if(a){const g=ctx.createLinearGradient(x,0,x+kw,0);g.addColorStop(0,a==='right'?'#2a6fb8':'#1a8040');g.addColorStop(1,a==='right'?'#1a4f8a':'#155a2e');ctx.fillStyle=g}
+    else{const g=ctx.createLinearGradient(x,0,x,bh);g.addColorStop(0,'#2a2a2a');g.addColorStop(.6,'#1a1a1a');g.addColorStop(1,'#0d0d0d');ctx.fillStyle=g}
     ctx.beginPath();ctx.roundRect(x,0,kw,bh,[0,0,4,4]);ctx.fill();
-    if(!a){
-      ctx.fillStyle='rgba(255,255,255,.2)';
-      ctx.beginPath();ctx.roundRect(x+1,1,kw-2,6,[2,2,0,0]);ctx.fill();
-    }
-    ctx.strokeStyle='rgba(0,0,0,.8)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.roundRect(x,0,kw,bh,[0,0,4,4]);ctx.stroke();
+    if(!a){ctx.fillStyle='rgba(255,255,255,.2)';ctx.beginPath();ctx.roundRect(x+1,1,kw-2,6,[2,2,0,0]);ctx.fill()}
+    ctx.strokeStyle='rgba(0,0,0,.8)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x,0,kw,bh,[0,0,4,4]);ctx.stroke();
   }
-  ctx.fillStyle='rgba(74,159,255,.3)';ctx.fillRect(0,0,W,2);
-  ctx.restore();
+  ctx.fillStyle='rgba(74,159,255,.3)';ctx.fillRect(0,0,W,2);ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT RAPIDE — WebCodecs + OfflineAudioContext
+// ═══════════════════════════════════════════════════
+const EXPORT_W=1280,EXPORT_H=720,FPS=30;
+let cancelFastExport=false;
+
+function canFastExport(){
+  return typeof VideoEncoder!=='undefined'
+    && typeof AudioEncoder!=='undefined'
+    && typeof OffscreenCanvas!=='undefined'
+    && typeof WebMMuxer!=='undefined';
+}
+
+async function detectVideoCodec(){
+  for(const codec of['vp09.00.31.08','vp09.00.10.08','vp8']){
+    try{
+      const r=await VideoEncoder.isConfigSupported({codec,width:EXPORT_W,height:EXPORT_H,bitrate:3e6,framerate:FPS});
+      if(r.supported)return{codec,muxer:codec.startsWith('vp09')?'V_VP9':'V_VP8'};
+    }catch(e){}
+  }
+  return null;
+}
+
+async function fastExport(){
+  cancelFastExport=false;
+  document.getElementById('fe-nav-title').textContent=songName;
+  showScreen('fast-export');
+
+  try{
+    // ── Étape 1 : rendu audio hors-ligne ──
+    setFEStatus('Rendu audio…',0);
+    const audioBuffer=await renderAudioOffline();
+    if(cancelFastExport)return;
+
+    // ── Détection codec vidéo ──
+    const codecInfo=await detectVideoCodec();
+    if(!codecInfo)throw new Error('Aucun codec VP9/VP8 disponible dans ce navigateur.');
+
+    // ── Étape 2 : rendu vidéo + encodage ──
+    setFEStatus('Rendu vidéo…',0);
+    const {Muxer,ArrayBufferTarget}=WebMMuxer;
+    const target=new ArrayBufferTarget();
+    const muxer=new Muxer({
+      target,
+      video:{codec:codecInfo.muxer,width:EXPORT_W,height:EXPORT_H,frameRate:FPS},
+      audio:{codec:'A_OPUS',sampleRate:audioBuffer.sampleRate,numberOfChannels:2},
+      firstTimestampBehavior:'offset'
+    });
+
+    const videoEncoder=new VideoEncoder({
+      output:(chunk,meta)=>muxer.addVideoChunk(chunk,meta),
+      error:e=>{throw e}
+    });
+    videoEncoder.configure({codec:codecInfo.codec,width:EXPORT_W,height:EXPORT_H,bitrate:3e6,framerate:FPS});
+
+    const audioEncoder=new AudioEncoder({
+      output:(chunk,meta)=>muxer.addAudioChunk(chunk,meta),
+      error:e=>{throw e}
+    });
+    audioEncoder.configure({codec:'opus',sampleRate:audioBuffer.sampleRate,numberOfChannels:2,bitrate:192e3});
+
+    const duration=totalDuration+INTRO+0.5;
+    const totalFrames=Math.ceil(duration*FPS);
+    const samplesPerFrame=Math.ceil(audioBuffer.sampleRate/FPS);
+    const offscreen=new OffscreenCanvas(EXPORT_W,EXPORT_H);
+    const ctx=offscreen.getContext('2d',{alpha:false});
+
+    for(let f=0;f<totalFrames;f++){
+      if(cancelFastExport){videoEncoder.close();audioEncoder.close();return}
+
+      const t=f/FPS;
+      const ts=Math.round(t*1e6); // microsecondes
+
+      // Frame vidéo
+      _layout=null;_lw=0; // force recalc pour EXPORT_W
+      drawAll(ctx,t,EXPORT_W,EXPORT_H);
+      const vf=new VideoFrame(offscreen,{timestamp:ts,duration:Math.round(1e6/FPS)});
+      videoEncoder.encode(vf,{keyFrame:f%150===0});
+      vf.close();
+
+      // Chunk audio correspondant
+      const offset=Math.round(t*audioBuffer.sampleRate);
+      const len=Math.min(samplesPerFrame,audioBuffer.length-offset);
+      if(len>0){
+        const buf=new Float32Array(len*2);
+        buf.set(audioBuffer.getChannelData(0).subarray(offset,offset+len),0);
+        buf.set(audioBuffer.getChannelData(1).subarray(offset,offset+len),len);
+        const ad=new AudioData({
+          format:'f32-planar',sampleRate:audioBuffer.sampleRate,
+          numberOfFrames:len,numberOfChannels:2,timestamp:ts,data:buf
+        });
+        audioEncoder.encode(ad);ad.close();
+      }
+
+      // Backpressure : évite de saturer l'encodeur
+      while(videoEncoder.encodeQueueSize>30)await new Promise(r=>setTimeout(r,5));
+
+      // Mise à jour UI tous les 15 frames
+      if(f%15===0){
+        const pct=Math.round(f/totalFrames*100);
+        setFEStatus('Rendu vidéo…',pct/100);
+        await new Promise(r=>setTimeout(r,0));
+      }
+    }
+
+    setFEStatus('Finalisation…',1);
+    await videoEncoder.flush();
+    await audioEncoder.flush();
+    muxer.finalize();
+
+    const blob=new Blob([target.buffer],{type:'video/webm'});
+    triggerDownload(blob,songName+'.webm');
+    showScreen('ready');
+
+  }catch(e){
+    if(!cancelFastExport)alert('Erreur export : '+e.message);
+    showScreen('ready');
+  }
+}
+
+function setFEStatus(msg,pct){
+  document.getElementById('fe-status').textContent=msg;
+  document.getElementById('fe-progress-bar').style.width=(pct*100).toFixed(0)+'%';
+  document.getElementById('fe-pct').textContent=Math.round(pct*100)+'%';
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT FALLBACK — MediaRecorder (temps réel)
+// ═══════════════════════════════════════════════════
+let exportCtx,exportAnimId,exportRecorder,exportChunks=[],exportRecording=false;
+
+async function realtimeExport(){
+  if(!window.MediaRecorder){alert('Export non supporté par ce navigateur.');return}
+  const mimeType=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4']
+    .find(t=>MediaRecorder.isTypeSupported(t));
+  if(!mimeType){alert('Export non supporté par ce navigateur.');return}
+
+  showScreen('export');
+  document.getElementById('export-nav-title').textContent=songName;
+  document.getElementById('export-progress-bar').style.width='0%';
+  document.getElementById('export-time-lbl').textContent='0:00 / '+fmt(totalDuration);
+  await new Promise(r=>setTimeout(r,50));
+
+  const exportCanvas=document.getElementById('export-canvas');
+  exportCtx=exportCanvas.getContext('2d',{alpha:false});
+  const audioDest=await buildAudioContext(true);
+  const combined=new MediaStream([...exportCanvas.captureStream(30).getVideoTracks(),...(audioDest?audioDest.stream.getAudioTracks():[])]);
+  exportChunks=[];
+  exportRecorder=new MediaRecorder(combined,{mimeType,videoBitsPerSecond:3e6,audioBitsPerSecond:192e3});
+  exportRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)exportChunks.push(e.data)};
+  exportRecorder.onstop=finishRealtimeExport;
+  exportRecorder.start(200);
+  playing=true;currentTime=0;lastTS=null;speed=1;exportRecording=true;
+  exportAnimId=requestAnimationFrame(realtimeExportLoop);
+}
+
+function realtimeExportLoop(ts){
+  if(!exportRecording)return;
+  if(lastTS)currentTime+=(ts-lastTS)/1000;lastTS=ts;
+  const done=totalDuration+INTRO+0.8;
+  if(currentTime>=done){exportRecording=false;playing=false;exportRecorder.stop();document.getElementById('export-progress-bar').style.width='100%';document.getElementById('export-time-lbl').textContent='Finalisation…';return}
+  scheduleAudio();
+  _layout=null;_lw=0;drawAll(exportCtx,currentTime,EXPORT_W,EXPORT_H);
+  const pct=Math.min(currentTime/done,1);
+  document.getElementById('export-progress-bar').style.width=(pct*100).toFixed(1)+'%';
+  document.getElementById('export-time-lbl').textContent=fmt(Math.max(currentTime-INTRO,0))+' / '+fmt(totalDuration);
+  exportAnimId=requestAnimationFrame(realtimeExportLoop);
+}
+
+function finishRealtimeExport(){
+  closeAudio();
+  const isMP4=exportChunks[0]&&exportChunks[0].type.includes('mp4');
+  const blob=new Blob(exportChunks,{type:isMP4?'video/mp4':'video/webm'});
+  triggerDownload(blob,songName+(isMP4?'.mp4':'.webm'));
+  showScreen('ready');
+}
+
+function cancelRealtimeExport(){
+  exportRecording=false;
+  if(exportAnimId){cancelAnimationFrame(exportAnimId);exportAnimId=null}
+  if(exportRecorder&&exportRecorder.state!=='inactive'){exportRecorder.ondataavailable=null;exportRecorder.onstop=null;exportRecorder.stop()}
+  closeAudio();showScreen('ready');
 }
 
 // ═══════════════════════════════════════════════════
@@ -611,11 +721,9 @@ function drawAll(ctx,t,W,H){
 let playerCanvas,playerCtx,playerAnimId,playerDpr=1;
 
 function resizePlayerCanvas(){
-  if(!playerCanvas)return;
-  _layout=null;_lw=0;
+  if(!playerCanvas)return;_layout=null;_lw=0;
   const wrap=document.getElementById('player-canvas-wrap');
-  const dpr=window.devicePixelRatio||1;
-  playerDpr=dpr;
+  const dpr=window.devicePixelRatio||1;playerDpr=dpr;
   const W=wrap.clientWidth,H=wrap.clientHeight;
   playerCanvas.style.width=W+'px';playerCanvas.style.height=H+'px';
   playerCanvas.width=Math.round(W*dpr);playerCanvas.height=Math.round(H*dpr);
@@ -623,17 +731,8 @@ function resizePlayerCanvas(){
 }
 
 function playerLoop(ts){
-  if(playing){
-    if(lastTS)currentTime+=((ts-lastTS)/1000)*speed;
-    lastTS=ts;
-    if(currentTime>=totalDuration+INTRO+.5){currentTime=0;clearScheduled()}
-    scheduleAudio();
-  }else lastTS=null;
-
-  if(playerCanvas){
-    const W=playerCanvas.width/playerDpr,H=playerCanvas.height/playerDpr;
-    drawAll(playerCtx,currentTime,W,H);
-  }
+  if(playing){if(lastTS)currentTime+=((ts-lastTS)/1000)*speed;lastTS=ts;if(currentTime>=totalDuration+INTRO+.5){currentTime=0;clearScheduled()}scheduleAudio()}else lastTS=null;
+  if(playerCanvas){const W=playerCanvas.width/playerDpr,H=playerCanvas.height/playerDpr;drawAll(playerCtx,currentTime,W,H)}
   const total=totalDuration+INTRO;
   document.getElementById('seek-fill').style.width=(total>0?Math.min(currentTime/total,1)*100:0)+'%';
   document.getElementById('time-lbl').textContent=fmt(Math.max(currentTime-INTRO,0))+' / '+fmt(totalDuration);
@@ -646,12 +745,10 @@ async function startPlayerMode(){
   document.getElementById('speed-slider').value=1;
   document.getElementById('speed-lbl').textContent='×1.0';
   document.getElementById('play-icon').textContent='⏸';
-  showScreen('player');
-  await new Promise(r=>setTimeout(r,30));
+  showScreen('player');await new Promise(r=>setTimeout(r,30));
   playerCanvas=document.getElementById('player-canvas');
   playerCtx=playerCanvas.getContext('2d',{alpha:false});
-  resizePlayerCanvas();
-  await buildAudioContext(false);
+  resizePlayerCanvas();await buildAudioContext(false);
   playerAnimId=requestAnimationFrame(playerLoop);
 }
 
@@ -660,229 +757,84 @@ function stopPlayerMode(){
   closeAudio();
 }
 
-function togglePlay(){
-  playing=!playing;
-  if(!playing)clearScheduled();
-  document.getElementById('play-icon').textContent=playing?'⏸':'▶';
-  if(playing)lastTS=null;
-}
-
-function doRestart(){
-  clearScheduled();currentTime=0;lastTS=null;playing=true;
-  document.getElementById('play-icon').textContent='⏸';
-}
-
-function seekTo(e){
-  clearScheduled();
-  const r=e.currentTarget.getBoundingClientRect();
-  currentTime=Math.max(0,(e.clientX-r.left)/r.width*(totalDuration+INTRO));
-  lastTS=null;
-}
-
-function onSpeedChange(v){
-  speed=parseFloat(v);
-  document.getElementById('speed-lbl').textContent='×'+speed.toFixed(2).replace(/\.?0+$/,'');
-  clearScheduled();
-}
-
-// ═══════════════════════════════════════════════════
-// MODE EXPORT
-// ═══════════════════════════════════════════════════
-const EXPORT_W=1280,EXPORT_H=720;
-let exportCtx,exportAnimId;
-let exportRecorder,exportChunks=[];
-let exportRecording=false;
-
-async function startExportMode(){
-  if(!window.MediaRecorder){
-    alert('Votre navigateur ne supporte pas l\'export vidéo.\nUtilisez Chrome ou Firefox.');
-    return;
-  }
-  const mimeType=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4']
-    .find(t=>MediaRecorder.isTypeSupported(t));
-  if(!mimeType){
-    alert('Votre navigateur ne supporte pas l\'export vidéo.\nUtilisez Chrome ou Firefox.');
-    return;
-  }
-
-  showScreen('export');
-  document.getElementById('export-nav-title').textContent=songName;
-  document.getElementById('export-progress-bar').style.width='0%';
-  document.getElementById('export-time-lbl').textContent='0:00 / '+fmt(totalDuration);
-  await new Promise(r=>setTimeout(r,50));
-
-  const exportCanvas=document.getElementById('export-canvas');
-  exportCtx=exportCanvas.getContext('2d',{alpha:false});
-
-  const audioDest=await buildAudioContext(true);
-
-  const videoStream=exportCanvas.captureStream(30);
-  const audioTracks=audioDest?audioDest.stream.getAudioTracks():[];
-  const combined=new MediaStream([...videoStream.getVideoTracks(),...audioTracks]);
-
-  exportChunks=[];
-  exportRecorder=new MediaRecorder(combined,{
-    mimeType,
-    videoBitsPerSecond:3_000_000,
-    audioBitsPerSecond:192_000
-  });
-  exportRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)exportChunks.push(e.data)};
-  exportRecorder.onstop=finishExport;
-  exportRecorder.start(200);
-
-  playing=true;currentTime=0;lastTS=null;speed=1;exportRecording=true;
-  exportAnimId=requestAnimationFrame(exportLoop);
-}
-
-function exportLoop(ts){
-  if(!exportRecording)return;
-  if(lastTS)currentTime+=(ts-lastTS)/1000;
-  lastTS=ts;
-
-  const totalT=totalDuration+INTRO+0.8;
-  if(currentTime>=totalT){
-    exportRecording=false;playing=false;
-    exportRecorder.stop();
-    document.getElementById('export-progress-bar').style.width='100%';
-    document.getElementById('export-time-lbl').textContent='Finalisation…';
-    return;
-  }
-
-  scheduleAudio();
-  drawAll(exportCtx,currentTime,EXPORT_W,EXPORT_H);
-
-  const pct=Math.min(currentTime/totalT,1);
-  document.getElementById('export-progress-bar').style.width=(pct*100).toFixed(1)+'%';
-  document.getElementById('export-time-lbl').textContent=
-    fmt(Math.max(currentTime-INTRO,0))+' / '+fmt(totalDuration);
-
-  exportAnimId=requestAnimationFrame(exportLoop);
-}
-
-function finishExport(){
-  closeAudio();
-  const isMP4=exportChunks[0]&&exportChunks[0].type.includes('mp4');
-  const mime=isMP4?'video/mp4':'video/webm';
-  const ext=isMP4?'.mp4':'.webm';
-  const blob=new Blob(exportChunks,{type:mime});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=(songName||'piano-tuto')+ext;
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
-  showScreen('ready');
-}
-
-function cancelExport(){
-  exportRecording=false;
-  if(exportAnimId){cancelAnimationFrame(exportAnimId);exportAnimId=null}
-  if(exportRecorder&&exportRecorder.state!=='inactive'){
-    exportRecorder.ondataavailable=null;exportRecorder.onstop=null;
-    exportRecorder.stop();
-  }
-  closeAudio();
-  showScreen('ready');
-}
+function togglePlay(){playing=!playing;if(!playing)clearScheduled();document.getElementById('play-icon').textContent=playing?'⏸':'▶';if(playing)lastTS=null}
+function doRestart(){clearScheduled();currentTime=0;lastTS=null;playing=true;document.getElementById('play-icon').textContent='⏸'}
+function seekTo(e){clearScheduled();const r=e.currentTarget.getBoundingClientRect();currentTime=Math.max(0,(e.clientX-r.left)/r.width*(totalDuration+INTRO));lastTS=null}
+function onSpeedChange(v){speed=parseFloat(v);document.getElementById('speed-lbl').textContent='×'+speed.toFixed(2).replace(/\.?0+$/,'');clearScheduled()}
 
 // ═══════════════════════════════════════════════════
 // UI
 // ═══════════════════════════════════════════════════
-function fmt(s){
-  s=Math.max(0,s);
-  return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
-}
+function fmt(s){s=Math.max(0,s);return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0')}
 
+const SCREENS=['upload','ready','player','export','fast-export'];
 function showScreen(name){
-  ['upload','ready','player','export'].forEach(n=>{
-    document.getElementById(n+'-screen').classList.toggle('hidden',n!==name);
-  });
+  SCREENS.forEach(n=>document.getElementById(n.replace('-','-')+'-screen').classList.toggle('hidden',n!==name));
 }
 
-function showLoading(msg){
-  document.getElementById('loading-msg').textContent=msg||'Chargement…';
-  document.getElementById('loading-overlay').style.display='flex';
-}
+function showLoading(msg){document.getElementById('loading-msg').textContent=msg||'Chargement…';document.getElementById('loading-overlay').style.display='flex'}
 function hideLoading(){document.getElementById('loading-overlay').style.display='none'}
 function setLoadingMsg(msg){document.getElementById('loading-msg').textContent=msg}
+function triggerDownload(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(a.href),60000)}
 
 async function loadMidiFile(file){
   try{
     const buf=await file.arrayBuffer();
     const parsed=parseMidi(buf);
     if(!parsed.length)throw new Error('Aucune note trouvée');
-    notes=parsed;
-    totalDuration=Math.max(...notes.map(n=>n.start+n.dur))+1;
+    notes=parsed;totalDuration=Math.max(...notes.map(n=>n.start+n.dur))+1;
     songName=file.name.replace(/\.(mid|midi)$/i,'');
     document.getElementById('ready-song-name').textContent=songName;
-    document.getElementById('ready-song-meta').textContent=
-      notes.length+' notes · '+fmt(totalDuration);
+    document.getElementById('ready-song-meta').textContent=notes.length+' notes · '+fmt(totalDuration);
     showScreen('ready');
-  }catch(e){
-    alert('Erreur lors du chargement : '+e.message);
-  }
+  }catch(e){alert('Erreur : '+e.message)}
 }
 
 // ═══════════════════════════════════════════════════
 // EVENTS
 // ═══════════════════════════════════════════════════
-document.getElementById('browse-btn').addEventListener('click',e=>{
-  e.stopPropagation();
-  document.getElementById('midi-file').click();
-});
-document.getElementById('midi-file').addEventListener('change',e=>{
-  if(e.target.files[0])loadMidiFile(e.target.files[0]);
-  e.target.value='';
-});
+document.getElementById('browse-btn').addEventListener('click',e=>{e.stopPropagation();document.getElementById('midi-file').click()});
+document.getElementById('midi-file').addEventListener('change',e=>{if(e.target.files[0])loadMidiFile(e.target.files[0]);e.target.value=''});
 
-const dropZone=document.getElementById('drop-zone');
-dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over')});
-dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop',e=>{
-  e.preventDefault();dropZone.classList.remove('drag-over');
-  const f=e.dataTransfer.files[0];
-  if(f&&/\.(mid|midi)$/i.test(f.name))loadMidiFile(f);
-  else alert('Veuillez déposer un fichier .mid ou .midi');
-});
-dropZone.addEventListener('click',()=>document.getElementById('midi-file').click());
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f&&/\.(mid|midi)$/i.test(f.name))loadMidiFile(f);else alert('Veuillez déposer un fichier .mid ou .midi')});
+dz.addEventListener('click',()=>document.getElementById('midi-file').click());
 
 document.getElementById('ready-back-btn').addEventListener('click',()=>showScreen('upload'));
 
 document.getElementById('btn-visualize').addEventListener('click',async()=>{
   showLoading('Chargement des sons…');
-  try{
-    await ensureRawSamples();
-    hideLoading();
-    await startPlayerMode();
-  }catch(e){hideLoading();alert('Erreur : '+e.message)}
+  try{await ensureRawSamples();hideLoading();await startPlayerMode()}
+  catch(e){hideLoading();alert('Erreur : '+e.message)}
 });
 
 document.getElementById('btn-download').addEventListener('click',async()=>{
   showLoading('Chargement des sons…');
   try{
-    await ensureRawSamples();
-    hideLoading();
-    await startExportMode();
+    await ensureRawSamples();hideLoading();
+    if(canFastExport())await fastExport();
+    else await realtimeExport();
   }catch(e){hideLoading();alert('Erreur : '+e.message)}
 });
 
-document.getElementById('player-back-btn').addEventListener('click',()=>{
-  stopPlayerMode();
-  showScreen('ready');
-});
+document.getElementById('player-back-btn').addEventListener('click',()=>{stopPlayerMode();showScreen('ready')});
 
 document.getElementById('player-rec-btn').addEventListener('click',async()=>{
   stopPlayerMode();
-  showLoading('Préparation de l\'export…');
-  await new Promise(r=>setTimeout(r,80));
-  hideLoading();
-  await startExportMode();
+  showLoading('Préparation…');await new Promise(r=>setTimeout(r,80));hideLoading();
+  if(canFastExport())await fastExport();else await realtimeExport();
 });
 
-document.getElementById('export-cancel').addEventListener('click',cancelExport);
+document.getElementById('export-cancel').addEventListener('click',cancelRealtimeExport);
+
+document.getElementById('fe-cancel').addEventListener('click',()=>{
+  cancelFastExport=true;showScreen('ready');
+});
 
 window.addEventListener('resize',()=>{
-  if(!document.getElementById('player-screen').classList.contains('hidden'))
-    resizePlayerCanvas();
+  if(!document.getElementById('player-screen').classList.contains('hidden'))resizePlayerCanvas();
 });
 
 showScreen('upload');
