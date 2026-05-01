@@ -428,23 +428,19 @@ function closeAudio(){playing=false;clearScheduled();if(audioCtx){audioCtx.close
 // PRÉ-RENDU AUDIO HORS-LIGNE (pour export rapide)
 // ═══════════════════════════════════════════════════
 async function renderAudioOffline(){
-  const SR=48000; // taux Opus standard
+  const SR=48000;
   const dur=totalDuration+INTRO+1.5;
   const ctx=new OfflineAudioContext(2,Math.ceil(SR*dur),SR);
 
-  // Décoder les samples dans le contexte hors-ligne
+  // Décoder tous les samples en parallèle (plus rapide que séquentiel)
   const offSamples={};
-  for(const midi of Object.keys(rawSampleBuffers)){
+  await Promise.all(Object.keys(rawSampleBuffers).map(async midi=>{
     try{offSamples[parseInt(midi)]=await ctx.decodeAudioData(rawSampleBuffers[parseInt(midi)].slice(0))}catch(e){}
-  }
+  }));
 
-  const gain=ctx.createGain();gain.gain.value=0.7;
-  const irLen=Math.ceil(SR*1.5),ir=ctx.createBuffer(2,irLen,SR);
-  for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,3)*0.4}
-  const conv=ctx.createConvolver();conv.buffer=ir;
-  const rev=ctx.createGain();rev.gain.value=0.12;
-  gain.connect(conv);conv.connect(rev);
-  gain.connect(ctx.destination);rev.connect(ctx.destination);
+  // Pas de reverb ici — la convolution sur un long signal est prohibitivement lente
+  const gain=ctx.createGain();gain.gain.value=0.8;
+  gain.connect(ctx.destination);
 
   notes.forEach(n=>{
     const when=n.start+INTRO,nm=nearestKey(offSamples,n.midi);
