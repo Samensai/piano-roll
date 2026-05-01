@@ -95,6 +95,13 @@ body{
   display:flex;align-items:center;justify-content:center;
   transition:background .4s,border-color .4s;flex-shrink:0;
 }
+#video-btn{
+  width:32px;height:32px;border-radius:9px;border:1px solid var(--border2);
+  background:var(--bg4);font-size:15px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .4s,border-color .4s;flex-shrink:0;
+  text-decoration:none;
+}
 
 /* Search bar */
 #search-wrap{padding:10px 20px 0;flex-shrink:0}
@@ -445,6 +452,7 @@ input[type=file]{display:none}
 <div id="status-bar"></div>
 <div id="app-header">
   <span class="logo">🎹 Piano Tuto</span>
+  <a href="./tuto-video.html" id="video-btn" title="Export Vidéo">🎬</a>
   <button id="theme-btn" title="Changer le thème">☀️</button>
 </div>
 
