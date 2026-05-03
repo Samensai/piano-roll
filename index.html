@@ -1309,7 +1309,7 @@ function drawNote(ctx,x,y,w,h,color,glow){
   if(w<=0)return;
   y+=NOTE_GAP/2;h=Math.max(h-NOTE_GAP,3);
   const r=Math.min(w/2,8);h=Math.max(h,r*2+2);
-  ctx.shadowBlur=22;ctx.shadowColor=glow;
+  ctx.shadowBlur=0;
   const c=hexRgb(color);
   const g=ctx.createLinearGradient(x,y,x+w,y);
   g.addColorStop(0,`rgba(${Math.min(c.r+60,255)},${Math.min(c.g+60,255)},${Math.min(c.b+60,255)},1)`);
@@ -1381,9 +1381,9 @@ function drawScene(t,w,rh){
     const x=k.x,kw=k.w,bh=ph*.63;
     if(a){const g=pianoCtx.createLinearGradient(x,0,x+kw,0);g.addColorStop(0,a==='right'?'#2a6fb8':'#1a8040');g.addColorStop(1,a==='right'?'#1a4f8a':'#155a2e');pianoCtx.fillStyle=g}
     else if(isF){const g=pianoCtx.createLinearGradient(x,0,x+kw,0);g.addColorStop(0,'#cc9900');g.addColorStop(1,'#886600');pianoCtx.fillStyle=g}
-    else{const g=pianoCtx.createLinearGradient(x,0,x,bh);g.addColorStop(0,'#2a2a2a');g.addColorStop(.6,'#1a1a1a');g.addColorStop(1,'#0d0d0d');pianoCtx.fillStyle=g}
+    else{const g=pianoCtx.createLinearGradient(x,0,x,bh);g.addColorStop(0,'#0e0e0e');g.addColorStop(.5,'#050505');g.addColorStop(1,'#000');pianoCtx.fillStyle=g}
     pianoCtx.beginPath();pianoCtx.roundRect(x,0,kw,bh,[0,0,4,4]);pianoCtx.fill();
-    if(!a&&!isF){pianoCtx.fillStyle='rgba(255,255,255,.2)';pianoCtx.beginPath();pianoCtx.roundRect(x+1,1,kw-2,6,[2,2,0,0]);pianoCtx.fill()}
+    if(!a&&!isF){pianoCtx.fillStyle='rgba(255,255,255,.07)';pianoCtx.beginPath();pianoCtx.roundRect(x+1,1,kw-2,6,[2,2,0,0]);pianoCtx.fill()}
     pianoCtx.strokeStyle='rgba(0,0,0,.8)';pianoCtx.lineWidth=1;pianoCtx.beginPath();pianoCtx.roundRect(x,0,kw,bh,[0,0,4,4]);pianoCtx.stroke();
   }
   pianoCtx.fillStyle='rgba(74,159,255,.3)';pianoCtx.fillRect(0,0,w,2);
