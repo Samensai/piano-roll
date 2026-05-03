@@ -1309,12 +1309,12 @@ function drawNote(ctx,x,y,w,h,color,glow){
   if(w<=0)return;
   y+=NOTE_GAP/2;h=Math.max(h-NOTE_GAP,3);
   const r=Math.min(w/2,8);h=Math.max(h,r*2+2);
-  ctx.shadowBlur=14;ctx.shadowColor=glow;
+  ctx.shadowBlur=22;ctx.shadowColor=glow;
   const c=hexRgb(color);
   const g=ctx.createLinearGradient(x,y,x+w,y);
-  g.addColorStop(0,`rgba(${c.r+40},${c.g+40},${c.b+40},1)`);
+  g.addColorStop(0,`rgba(${Math.min(c.r+60,255)},${Math.min(c.g+60,255)},${Math.min(c.b+60,255)},1)`);
   g.addColorStop(.4,color);
-  g.addColorStop(1,`rgba(${Math.max(c.r-30,0)},${Math.max(c.g-30,0)},${Math.max(c.b-30,0)},1)`);
+  g.addColorStop(1,`rgba(${Math.max(c.r-50,0)},${Math.max(c.g-50,0)},${Math.max(c.b-50,0)},1)`);
   ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
   ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
@@ -1325,7 +1325,7 @@ function drawNote(ctx,x,y,w,h,color,glow){
   ctx.moveTo(x+r,y+1);ctx.lineTo(x+w-r,y+1);ctx.quadraticCurveTo(x+w-1,y+1,x+w-1,y+r);
   ctx.lineTo(x+w-1,y+Math.min(h*.35,10));ctx.lineTo(x+1,y+Math.min(h*.35,10));
   ctx.lineTo(x+1,y+r);ctx.quadraticCurveTo(x+1,y+1,x+r,y+1);ctx.closePath();
-  ctx.fillStyle='rgba(255,255,255,.18)';ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.25)';ctx.fill();
 }
 
 function drawScene(t,w,rh){
