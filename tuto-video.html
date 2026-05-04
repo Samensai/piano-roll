@@ -328,7 +328,27 @@ function parseMidi(buf){
     });
   });
   parsed.sort((a,b)=>a.start-b.start);
-  autoHandSplit(parsed);
+  // Assignation initiale simple — l'algo avancé n'est déclenché que par le bouton 🤖
+  const noteTracks=new Set(parsed.map(n=>n.track));
+  if(noteTracks.size>1){
+    const means={};
+    noteTracks.forEach(t=>{const tn=parsed.filter(n=>n.track===t);means[t]=tn.reduce((s,n)=>s+n.midi,0)/tn.length});
+    const sortedT=[...noteTracks].sort((a,b)=>means[b]-means[a]);
+    const rightT=new Set(sortedT.slice(0,Math.ceil(sortedT.length/2)));
+    parsed.forEach(n=>{n.hand=rightT.has(n.track)?'right':'left'});
+  }else{
+    const chSet=new Set(parsed.map(n=>n.ch));
+    if(chSet.size>1){
+      const means={};
+      chSet.forEach(ch=>{const cn=parsed.filter(n=>n.ch===ch);means[ch]=cn.reduce((s,n)=>s+n.midi,0)/cn.length});
+      const sortedC=[...chSet].sort((a,b)=>means[b]-means[a]);
+      const rightC=new Set(sortedC.slice(0,Math.ceil(sortedC.length/2)));
+      parsed.forEach(n=>{n.hand=rightC.has(n.ch)?'right':'left'});
+    }else{
+      const med=parsed.map(n=>n.midi).sort((a,b)=>a-b)[Math.floor(parsed.length/2)];
+      parsed.forEach(n=>{n.hand=n.midi>=med?'right':'left'});
+    }
+  }
   return parsed;
 }
 
