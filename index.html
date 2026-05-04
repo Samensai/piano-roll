@@ -1055,6 +1055,7 @@ input[type=file]{display:none}
       <button class="modal-btn delete" onclick="deleteImportedSong()">🗑 Supprimer</button>
       <button class="modal-btn confirm" onclick="confirmEdit()">Enregistrer ›</button>
     </div>
+    <button class="modal-btn" id="edit-handsplit-btn" style="text-align:center;background:rgba(168,85,247,.15);color:#a855f7;border-color:rgba(168,85,247,.4)" onclick="applyHandSplitToSong()">🤖 Répartir les mains automatiquement</button>
     <button class="modal-btn cancel" style="text-align:center" onclick="closeEditModal()">Annuler</button>
   </div>
 </div>
@@ -2428,6 +2429,26 @@ function onEditComposerChange(val){
 function closeEditModal(){
   document.getElementById('edit-modal').classList.remove('open');
   editingSong=null;
+}
+
+async function applyHandSplitToSong(){
+  if(!editingSong)return;
+  const btn=document.getElementById('edit-handsplit-btn');
+  btn.textContent='⏳ En cours…';btn.disabled=true;
+  try{
+    const record=await dbGet(editingSong.id);
+    if(!record||!record.notes)throw new Error('Notes introuvables');
+    autoHandSplit(record.notes);
+    await dbPut(record);
+    if(currentSong&&currentSong.id===editingSong.id)notes=record.notes;
+    const r=record.notes.filter(n=>n.hand==='right').length;
+    const l=record.notes.filter(n=>n.hand==='left').length;
+    btn.textContent='✓ '+r+' droite · '+l+' gauche';
+    setTimeout(()=>{btn.textContent='🤖 Répartir les mains automatiquement';btn.disabled=false},3000);
+  }catch(e){
+    btn.textContent='🤖 Répartir les mains automatiquement';btn.disabled=false;
+    alert('Erreur : '+e.message);
+  }
 }
 
 function confirmEdit(){

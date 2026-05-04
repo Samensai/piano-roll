@@ -67,6 +67,7 @@ html,body{height:100%;background:#0a0a1a;color:#e8e8f0;
 .action-btn:active{opacity:.75}
 .btn-visualize{background:linear-gradient(135deg,#1a3a6a,#0f2a50);color:#4a9fff;border:1px solid #2a4a7a}
 .btn-download{background:linear-gradient(135deg,#1a4a1a,#0f3010);color:#4ade80;border:1px solid #2a6a2a}
+.btn-handsplit{background:linear-gradient(135deg,#2a1a4a,#1a0f35);color:#a855f7;border:1px solid #4a2a7a}
 .btn-icon{font-size:18px}
 
 /* ── Player ── */
@@ -211,6 +212,9 @@ input[type=range]{height:16px}
     <button class="action-btn btn-visualize" id="btn-visualize">
       <span class="btn-icon">▶</span>Visualiser
     </button>
+    <button class="action-btn btn-handsplit" id="btn-handsplit" onclick="applyHandSplit()">
+      <span class="btn-icon">🤖</span>Répartir les mains automatiquement
+    </button>
     <button class="action-btn btn-download" id="btn-download">
       <span class="btn-icon">⬇</span>Télécharger .webm
     </button>
@@ -316,17 +320,70 @@ function parseMidi(buf){
   tracks.forEach((evts,ti)=>{
     const op={};
     evts.forEach(e=>{
-      if(e.type==='on')op[e.note+'_'+e.ch]={tick:e.tick,track:ti};
+      if(e.type==='on')op[e.note+'_'+e.ch]={tick:e.tick,track:ti,ch:e.ch};
       else if(e.type==='off'){
         const k=e.note+'_'+e.ch,o=op[k];
-        if(o){parsed.push({midi:e.note,start:t2s(o.tick),dur:Math.max(t2s(e.tick)-t2s(o.tick),.05),track:ti});delete op[k]}
+        if(o){parsed.push({midi:e.note,start:t2s(o.tick),dur:Math.max(t2s(e.tick)-t2s(o.tick),.05),track:ti,ch:o.ch});delete op[k]}
       }
     });
   });
   parsed.sort((a,b)=>a.start-b.start);
-  const med=[...parsed].map(n=>n.midi).sort((a,b)=>a-b)[Math.floor(parsed.length/2)];
-  parsed.forEach(n=>{n.hand=tracks.length>2?(n.track<=1?'right':'left'):(n.midi>=med?'right':'left')});
+  autoHandSplit(parsed);
   return parsed;
+}
+
+function autoHandSplit(notes){
+  if(!notes.length)return;
+  const noteTracks=new Set(notes.map(n=>n.track));
+  if(noteTracks.size>1){
+    const means={};
+    noteTracks.forEach(t=>{const tn=notes.filter(n=>n.track===t);means[t]=tn.reduce((s,n)=>s+n.midi,0)/tn.length});
+    const sorted=[...noteTracks].sort((a,b)=>means[b]-means[a]);
+    const rightTracks=new Set(sorted.slice(0,Math.ceil(sorted.length/2)));
+    notes.forEach(n=>{n.hand=rightTracks.has(n.track)?'right':'left'});
+    resolveHandCrossings(notes);return;
+  }
+  const chSet=new Set(notes.map(n=>n.ch));
+  if(chSet.size>1){
+    const means={};
+    chSet.forEach(ch=>{const cn=notes.filter(n=>n.ch===ch);means[ch]=cn.reduce((s,n)=>s+n.midi,0)/cn.length});
+    const sorted=[...chSet].sort((a,b)=>means[b]-means[a]);
+    const rightChs=new Set(sorted.slice(0,Math.ceil(sorted.length/2)));
+    notes.forEach(n=>{n.hand=rightChs.has(n.ch)?'right':'left'});
+    resolveHandCrossings(notes);return;
+  }
+  const pitches=[...new Set(notes.map(n=>n.midi))].sort((a,b)=>a-b);
+  const applyThreshold=sp=>{notes.forEach(n=>{n.hand=n.midi>=sp?'right':'left'})};
+  const isBalanced=()=>{const r=notes.filter(n=>n.hand==='right').length/notes.length;return r>=0.1&&r<=0.9};
+  if(pitches.length>=2){
+    let best=-1,sp=60;
+    for(let i=0;i<pitches.length-1;i++){
+      const gap=pitches[i+1]-pitches[i],mid=(pitches[i]+pitches[i+1])/2;
+      const score=gap*(0.4+Math.exp(-Math.pow(mid-60,2)/400));
+      if(score>best){best=score;sp=mid}
+    }
+    applyThreshold(sp);
+  }
+  if(!isBalanced()){const med=[...notes].map(n=>n.midi).sort((a,b)=>a-b)[Math.floor(notes.length/2)];applyThreshold(med)}
+  resolveHandCrossings(notes);
+}
+
+function resolveHandCrossings(notes){
+  const W=0.04;let i=0;
+  while(i<notes.length){
+    const t0=notes[i].start;let j=i;
+    while(j<notes.length&&notes[j].start-t0<=W)j++;
+    const g=notes.slice(i,j);
+    if(g.length>1){
+      const rn=g.filter(n=>n.hand==='right'),ln=g.filter(n=>n.hand==='left');
+      if(rn.length&&ln.length&&Math.min(...rn.map(n=>n.midi))<Math.max(...ln.map(n=>n.midi))){
+        const all=[...g].sort((a,b)=>b.midi-a.midi);
+        all.slice(0,rn.length).forEach(n=>{n.hand='right'});
+        all.slice(rn.length).forEach(n=>{n.hand='left'});
+      }
+    }
+    i=j;
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -793,6 +850,16 @@ function onSpeedChange(v){speed=parseFloat(v);document.getElementById('speed-lbl
 // UI
 // ═══════════════════════════════════════════════════
 function fmt(s){s=Math.max(0,s);return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0')}
+
+function applyHandSplit(){
+  if(!notes.length)return;
+  autoHandSplit(notes);
+  const r=notes.filter(n=>n.hand==='right').length;
+  const l=notes.filter(n=>n.hand==='left').length;
+  const btn=document.getElementById('btn-handsplit');
+  btn.innerHTML='✓ '+r+' notes droite · '+l+' gauche';
+  setTimeout(()=>{btn.innerHTML='<span class="btn-icon">🤖</span>Répartir les mains automatiquement'},3000);
+}
 
 const SCREENS=['upload','ready','player','export','fast-export'];
 function showScreen(name){
