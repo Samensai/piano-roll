@@ -202,7 +202,7 @@ input[type=range]{height:16px}
   <div class="screen-header">
     <button class="back-btn" id="ready-back-btn">‹</button>
     <span class="screen-title">Morceau chargé</span>
-    <span style="font-size:10px;color:#3a3a5a;margin-left:auto">algo v7</span>
+    <span style="font-size:10px;color:#3a3a5a;margin-left:auto">algo v8</span>
   </div>
   <div class="song-card">
     <div class="song-card-icon">🎵</div>
@@ -916,11 +916,20 @@ function applyHandSplitInPlayer(){
   if(!notes.length)return;
   const info=getMidiInfo();
   autoHandSplit(notes);
+  // Forcer un redraw immédiat du canvas
+  if(playerCanvas&&playerCtx){
+    const W=playerCanvas.width/playerDpr,H=playerCanvas.height/playerDpr;
+    drawAll(playerCtx,currentTime,W,H);
+  }
   const r=notes.filter(n=>n.hand==='right').length;
   const l=notes.filter(n=>n.hand==='left').length;
+  // Compter les notes visibles à l'instant T (fenêtre de 5 secondes)
+  const winStart=currentTime-0.1,winEnd=currentTime+5;
+  const visR=notes.filter(n=>n.hand==='right'&&n.start+INTRO>=winStart&&n.start+INTRO<=winEnd).length;
+  const visL=notes.filter(n=>n.hand==='left'&&n.start+INTRO>=winStart&&n.start+INTRO<=winEnd).length;
   const btn=document.getElementById('player-split-btn');
-  btn.textContent='✓ '+r+'R · '+l+'L · '+info;
-  setTimeout(()=>{btn.textContent='🤖 Répartir'},4000);
+  btn.textContent='✓ '+r+'R·'+l+'L total | '+visR+'R·'+visL+'L visibles | '+info;
+  setTimeout(()=>{btn.textContent='🤖 Répartir'},6000);
 }
 
 function getMidiInfo(){
