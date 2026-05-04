@@ -1380,24 +1380,14 @@ function parseMidi(buf){
     });
   });
   notes.sort((a,b)=>a.start-b.start);
-  // Assignation initiale simple : respecte la structure brute du fichier MIDI
-  // L'algo avancé (autoHandSplit) n'est déclenché que par le bouton 🤖
+  // Assignation initiale — l'algo avancé (voiceSeparation) est déclenché par le bouton 🤖
   const noteTracks=new Set(notes.map(n=>n.track));
   if(noteTracks.size>1){
-    const means={};
-    noteTracks.forEach(t=>{const tn=notes.filter(n=>n.track===t);means[t]=tn.reduce((s,n)=>s+n.midi,0)/tn.length});
-    const sortedT=[...noteTracks].sort((a,b)=>means[b]-means[a]);
-    const rightT=new Set(sortedT.slice(0,Math.ceil(sortedT.length/2)));
-    notes.forEach(n=>{n.hand=rightT.has(n.track)?'right':'left'});
+    splitByMaxGap(notes,'track');
   }else{
     const chSet=new Set(notes.map(n=>n.ch));
-    if(chSet.size>1){
-      const means={};
-      chSet.forEach(ch=>{const cn=notes.filter(n=>n.ch===ch);means[ch]=cn.reduce((s,n)=>s+n.midi,0)/cn.length});
-      const sortedC=[...chSet].sort((a,b)=>means[b]-means[a]);
-      const rightC=new Set(sortedC.slice(0,Math.ceil(sortedC.length/2)));
-      notes.forEach(n=>{n.hand=rightC.has(n.ch)?'right':'left'});
-    }else{
+    if(chSet.size>1) splitByMaxGap(notes,'ch');
+    else{
       const med=notes.map(n=>n.midi).sort((a,b)=>a-b)[Math.floor(notes.length/2)];
       notes.forEach(n=>{n.hand=n.midi>=med?'right':'left'});
     }
@@ -1405,28 +1395,37 @@ function parseMidi(buf){
   return notes;
 }
 
+// Assigne droite/gauche en coupant au plus grand écart entre moyennes de pitch des groupes
+// key = 'track' ou 'ch'
+function splitByMaxGap(notes,key){
+  const groups=new Set(notes.map(n=>n[key]));
+  const means={};
+  groups.forEach(g=>{const gn=notes.filter(n=>n[key]===g);means[g]=gn.reduce((s,n)=>s+n.midi,0)/gn.length});
+  const sorted=[...groups].sort((a,b)=>means[b]-means[a]);
+  // Chercher le plus grand saut entre moyennes consécutives
+  let bestGap=-1,splitIdx=1;
+  for(let i=0;i<sorted.length-1;i++){
+    const gap=means[sorted[i]]-means[sorted[i+1]];
+    if(gap>bestGap){bestGap=gap;splitIdx=i+1}
+  }
+  const rightSet=new Set(sorted.slice(0,splitIdx));
+  notes.forEach(n=>{n.hand=rightSet.has(n[key])?'right':'left'});
+}
+
 function autoHandSplit(notes){
   if(!notes.length)return;
 
-  // Étape 1 : pistes multiples → assigner par pitch moyen
+  // Étape 1 : pistes multiples → plus grand gap entre moyennes de pitch
   const noteTracks=new Set(notes.map(n=>n.track));
   if(noteTracks.size>1){
-    const means={};
-    noteTracks.forEach(t=>{const tn=notes.filter(n=>n.track===t);means[t]=tn.reduce((s,n)=>s+n.midi,0)/tn.length});
-    const sorted=[...noteTracks].sort((a,b)=>means[b]-means[a]);
-    const rightTracks=new Set(sorted.slice(0,Math.ceil(sorted.length/2)));
-    notes.forEach(n=>{n.hand=rightTracks.has(n.track)?'right':'left'});
+    splitByMaxGap(notes,'track');
     resolveHandCrossings(notes);return;
   }
 
-  // Étape 2 : canal MIDI multiple sur piste unique
+  // Étape 2 : canal MIDI multiple → même logique par canal
   const chSet=new Set(notes.map(n=>n.ch));
   if(chSet.size>1){
-    const means={};
-    chSet.forEach(ch=>{const cn=notes.filter(n=>n.ch===ch);means[ch]=cn.reduce((s,n)=>s+n.midi,0)/cn.length});
-    const sorted=[...chSet].sort((a,b)=>means[b]-means[a]);
-    const rightChs=new Set(sorted.slice(0,Math.ceil(sorted.length/2)));
-    notes.forEach(n=>{n.hand=rightChs.has(n.ch)?'right':'left'});
+    splitByMaxGap(notes,'ch');
     resolveHandCrossings(notes);return;
   }
 
