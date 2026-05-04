@@ -202,7 +202,7 @@ input[type=range]{height:16px}
   <div class="screen-header">
     <button class="back-btn" id="ready-back-btn">‹</button>
     <span class="screen-title">Morceau chargé</span>
-    <span style="font-size:10px;color:#3a3a5a;margin-left:auto">algo v4</span>
+    <span style="font-size:10px;color:#3a3a5a;margin-left:auto">algo v5</span>
   </div>
   <div class="song-card">
     <div class="song-card-icon">🎵</div>
@@ -230,6 +230,7 @@ input[type=range]{height:16px}
     <span id="speed-lbl">×1.0</span>
     <input type="range" id="speed-slider" min="0.2" max="2" step="0.1" value="1"
            oninput="onSpeedChange(this.value)">
+    <button id="player-split-btn" onclick="applyHandSplitInPlayer()" style="padding:5px 10px;background:rgba(168,85,247,.2);color:#a855f7;border:1px solid rgba(168,85,247,.5);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">🤖 Répartir</button>
     <button id="player-rec-btn">⏺ Exporter</button>
   </div>
   <div id="player-canvas-wrap">
@@ -907,12 +908,30 @@ function fmt(s){s=Math.max(0,s);return Math.floor(s/60)+':'+String(Math.floor(s%
 
 function applyHandSplit(){
   if(!notes.length)return;
+  const info=getMidiInfo();
   autoHandSplit(notes);
   const r=notes.filter(n=>n.hand==='right').length;
   const l=notes.filter(n=>n.hand==='left').length;
   const btn=document.getElementById('btn-handsplit');
-  btn.innerHTML='✓ '+r+' notes droite · '+l+' gauche';
-  setTimeout(()=>{btn.innerHTML='<span class="btn-icon">🤖</span>Répartir les mains automatiquement'},3000);
+  btn.innerHTML='✓ '+r+' droite · '+l+' gauche — '+info;
+  setTimeout(()=>{btn.innerHTML='<span class="btn-icon">🤖</span>Répartir les mains automatiquement'},4000);
+}
+
+function applyHandSplitInPlayer(){
+  if(!notes.length)return;
+  const info=getMidiInfo();
+  autoHandSplit(notes);
+  const r=notes.filter(n=>n.hand==='right').length;
+  const l=notes.filter(n=>n.hand==='left').length;
+  const btn=document.getElementById('player-split-btn');
+  btn.textContent='✓ '+r+'R · '+l+'L · '+info;
+  setTimeout(()=>{btn.textContent='🤖 Répartir'},4000);
+}
+
+function getMidiInfo(){
+  const tracks=new Set(notes.map(n=>n.track)).size;
+  const chs=new Set(notes.map(n=>n.ch)).size;
+  return tracks+'piste'+(tracks>1?'s':'')+' · '+chs+'canal'+(chs>1?'x':'');
 }
 
 const SCREENS=['upload','ready','player','export','fast-export'];
