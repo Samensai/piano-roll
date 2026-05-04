@@ -1,4 +1,4 @@
-const CACHE_NAME = 'piano-tuto-v12';
+const CACHE_NAME = 'piano-tuto-v14';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -21,6 +21,7 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
+  if (!url.protocol.startsWith('http')) return;
 
   // index.html et navigation : toujours réseau en premier, cache en fallback
   // Ça garantit que les mises à jour sont toujours récupérées
