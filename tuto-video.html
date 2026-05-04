@@ -352,27 +352,60 @@ function autoHandSplit(notes){
     notes.forEach(n=>{n.hand=rightChs.has(n.ch)?'right':'left'});
     resolveHandCrossings(notes);return;
   }
-  const pitches=[...new Set(notes.map(n=>n.midi))].sort((a,b)=>a-b);
-  const applyThreshold=sp=>{notes.forEach(n=>{n.hand=n.midi>=sp?'right':'left'})};
-  const isBalanced=()=>{const r=notes.filter(n=>n.hand==='right').length/notes.length;return r>=0.1&&r<=0.9};
-  if(pitches.length>=2){
-    let best=-1,sp=60;
-    for(let i=0;i<pitches.length-1;i++){
-      const gap=pitches[i+1]-pitches[i],mid=(pitches[i]+pitches[i+1])/2;
-      const score=gap*(0.4+Math.exp(-Math.pow(mid-60,2)/400));
-      if(score>best){best=score;sp=mid}
-    }
-    applyThreshold(sp);
+  voiceSeparation(notes);
+  const ratio=notes.filter(n=>n.hand==='right').length/notes.length;
+  if(ratio<0.05||ratio>0.95){
+    const med=[...notes].map(n=>n.midi).sort((a,b)=>a-b)[Math.floor(notes.length/2)];
+    notes.forEach(n=>{n.hand=n.midi>=med?'right':'left'});
   }
-  if(!isBalanced()){const med=[...notes].map(n=>n.midi).sort((a,b)=>a-b)[Math.floor(notes.length/2)];applyThreshold(med)}
-  resolveHandCrossings(notes);
+}
+
+function voiceSeparation(notes){
+  const allM=[...notes].map(n=>n.midi).sort((a,b)=>a-b);
+  const R={pos:allM[Math.floor(allM.length*.75)],t:-999};
+  const L={pos:allM[Math.floor(allM.length*.25)],t:-999};
+  let i=0;
+  while(i<notes.length){
+    const t0=notes[i].start;let j=i;
+    while(j<notes.length&&notes[j].start-t0<=0.04)j++;
+    const cl=[...notes.slice(i,j)].sort((a,b)=>b.midi-a.midi);
+    const span=cl[0].midi-cl[cl.length-1].midi;
+    if(span<=10){
+      const center=cl.reduce((s,n)=>s+n.midi,0)/cl.length;
+      const hand=vCost(center,t0,R)<=vCost(center,t0,L)?'right':'left';
+      cl.forEach(n=>{n.hand=hand});
+      const v=hand==='right'?R:L;v.pos=center;v.t=t0;
+    }else{
+      let best=Infinity,split=1;
+      for(let s=1;s<cl.length;s++){
+        const rn=cl.slice(0,s),ln=cl.slice(s);
+        const rc=rn.reduce((s,n)=>s+n.midi,0)/rn.length;
+        const lc=ln.reduce((s,n)=>s+n.midi,0)/ln.length;
+        const rSpan=rn[0].midi-rn[rn.length-1].midi;
+        const lSpan=ln[0].midi-ln[ln.length-1].midi;
+        const score=vCost(rc,t0,R)+vCost(lc,t0,L)
+                   +Math.max(0,rSpan-10)*2+Math.max(0,lSpan-10)*2;
+        if(score<best){best=score;split=s}
+      }
+      cl.slice(0,split).forEach(n=>{n.hand='right'});
+      cl.slice(split).forEach(n=>{n.hand='left'});
+      const rn=cl.slice(0,split),ln=cl.slice(split);
+      R.pos=rn.reduce((s,n)=>s+n.midi,0)/rn.length;R.t=t0;
+      L.pos=ln.reduce((s,n)=>s+n.midi,0)/ln.length;L.t=t0;
+    }
+    i=j;
+  }
+}
+
+function vCost(midi,t,voice){
+  return Math.abs(midi-voice.pos)*(0.15+0.85*Math.exp(-Math.max(0,t-voice.t)*2));
 }
 
 function resolveHandCrossings(notes){
-  const W=0.04;let i=0;
+  let i=0;
   while(i<notes.length){
     const t0=notes[i].start;let j=i;
-    while(j<notes.length&&notes[j].start-t0<=W)j++;
+    while(j<notes.length&&notes[j].start-t0<=0.04)j++;
     const g=notes.slice(i,j);
     if(g.length>1){
       const rn=g.filter(n=>n.hand==='right'),ln=g.filter(n=>n.hand==='left');
