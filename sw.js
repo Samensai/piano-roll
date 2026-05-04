@@ -1,4 +1,4 @@
-const CACHE_NAME = 'piano-tuto-v13';
+const CACHE_NAME = 'piano-tuto-v14';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
