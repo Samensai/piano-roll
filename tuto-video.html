@@ -202,7 +202,7 @@ input[type=range]{height:16px}
   <div class="screen-header">
     <button class="back-btn" id="ready-back-btn">‹</button>
     <span class="screen-title">Morceau chargé</span>
-    <span style="font-size:10px;color:#3a3a5a;margin-left:auto">algo v6</span>
+    <span style="font-size:10px;color:#3a3a5a;margin-left:auto">algo v7</span>
   </div>
   <div class="song-card">
     <div class="song-card-icon">🎵</div>
@@ -363,13 +363,11 @@ function autoHandSplit(notes){
   if(!notes.length)return;
   const noteTracks=new Set(notes.map(n=>n.track));
   if(noteTracks.size>1){
-    splitByMaxGap(notes,'track');
-    resolveHandCrossings(notes);return;
+    splitByMaxGap(notes,'track');return;
   }
   const chSet=new Set(notes.map(n=>n.ch));
   if(chSet.size>1){
-    splitByMaxGap(notes,'ch');
-    resolveHandCrossings(notes);return;
+    splitByMaxGap(notes,'ch');return;
   }
   voiceSeparation(notes);
   const ratio=notes.filter(n=>n.hand==='right').length/notes.length;

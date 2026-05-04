@@ -1419,14 +1419,16 @@ function autoHandSplit(notes){
   const noteTracks=new Set(notes.map(n=>n.track));
   if(noteTracks.size>1){
     splitByMaxGap(notes,'track');
-    resolveHandCrossings(notes);return;
+    // Pas de resolveHandCrossings : on fait confiance à l'assignation par piste
+    return;
   }
 
   // Étape 2 : canal MIDI multiple → même logique par canal
   const chSet=new Set(notes.map(n=>n.ch));
   if(chSet.size>1){
     splitByMaxGap(notes,'ch');
-    resolveHandCrossings(notes);return;
+    // Pas de resolveHandCrossings ici non plus
+    return;
   }
 
   // Étape 3 : séparation par suivi de voix
