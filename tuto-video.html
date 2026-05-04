@@ -202,7 +202,7 @@ input[type=range]{height:16px}
   <div class="screen-header">
     <button class="back-btn" id="ready-back-btn">‹</button>
     <span class="screen-title">Morceau chargé</span>
-    <span style="font-size:10px;color:#3a3a5a;margin-left:auto">algo v8</span>
+    <span style="font-size:10px;color:#3a3a5a;margin-left:auto">algo v9</span>
   </div>
   <div class="song-card">
     <div class="song-card-icon">🎵</div>
@@ -916,20 +916,25 @@ function applyHandSplitInPlayer(){
   if(!notes.length)return;
   const info=getMidiInfo();
   autoHandSplit(notes);
-  // Forcer un redraw immédiat du canvas
+  // Seek to first right-hand note so the result is immediately visible
+  const rightNotes=notes.filter(n=>n.hand==='right');
+  if(rightNotes.length){
+    const firstR=Math.min(...rightNotes.map(n=>n.start));
+    const target=Math.max(0,firstR+INTRO-2);
+    if(Math.abs(currentTime-target)>3){currentTime=target;clearScheduled();lastTS=null;}
+  }
   if(playerCanvas&&playerCtx){
     const W=playerCanvas.width/playerDpr,H=playerCanvas.height/playerDpr;
     drawAll(playerCtx,currentTime,W,H);
   }
   const r=notes.filter(n=>n.hand==='right').length;
   const l=notes.filter(n=>n.hand==='left').length;
-  // Compter les notes visibles à l'instant T (fenêtre de 5 secondes)
-  const winStart=currentTime-0.1,winEnd=currentTime+5;
+  const winStart=currentTime-0.1,winEnd=currentTime+6;
   const visR=notes.filter(n=>n.hand==='right'&&n.start+INTRO>=winStart&&n.start+INTRO<=winEnd).length;
   const visL=notes.filter(n=>n.hand==='left'&&n.start+INTRO>=winStart&&n.start+INTRO<=winEnd).length;
   const btn=document.getElementById('player-split-btn');
-  btn.textContent='✓ '+r+'R·'+l+'L total | '+visR+'R·'+visL+'L visibles | '+info;
-  setTimeout(()=>{btn.textContent='🤖 Répartir'},6000);
+  btn.textContent='✓ '+r+'R·'+l+'L | vis:'+visR+'R·'+visL+'L | t='+currentTime.toFixed(1)+'s | '+info;
+  setTimeout(()=>{btn.textContent='🤖 Répartir'},8000);
 }
 
 function getMidiInfo(){
