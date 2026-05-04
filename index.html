@@ -545,6 +545,264 @@ input[type=file]{display:none}
 }
 #editor-screen.open{display:flex}
 #editor-nav{
+  padding:6px 10px;padding-top:calc(6px + env(safe-area-inset-top,0px));
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;
+  transition:background .4s,border-color .4s;
+}
+#editor-back-btn{
+  font-size:22px;color:#4a9fff;padding:2px 4px;cursor:pointer;
+  background:none;border:none;flex-shrink:0;line-height:1;
+}
+#editor-info{flex:1;min-width:0}
+#editor-title-disp{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#editor-tempo-disp{font-size:10px;color:var(--text2)}
+#editor-tuto-btn{
+  width:34px;height:34px;border-radius:9px;
+  border:1px solid rgba(74,222,128,.35);background:rgba(74,222,128,.12);
+  color:#4ade80;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .2s;
+}
+#editor-tuto-btn:active{background:rgba(74,222,128,.25)}
+#editor-play-btn{
+  width:34px;height:34px;border-radius:9px;border:1px solid rgba(74,159,255,.35);
+  background:rgba(74,159,255,.12);color:#4a9fff;font-size:14px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .2s,border-color .2s;
+}
+#editor-play-btn:active{background:rgba(74,159,255,.25)}
+#editor-play-btn.playing{background:rgba(248,113,113,.18);border-color:rgba(248,113,113,.5);color:#f87171}
+#editor-save-btn{
+  padding:0 10px;height:34px;border-radius:9px;
+  border:1px solid rgba(168,85,247,.35);background:rgba(168,85,247,.12);
+  font-size:12px;font-weight:700;color:#a855f7;cursor:pointer;flex-shrink:0;
+  transition:background .2s;white-space:nowrap;
+}
+#editor-save-btn:active{background:rgba(168,85,247,.25)}
+
+/* Two-track timeline */
+#note-timeline{
+  height:110px;flex-shrink:0;
+  background:var(--bg3);border-bottom:1px solid var(--border2);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.track-row{flex:1;display:flex;align-items:center;overflow:hidden}
+.track-row:first-child{border-bottom:1px solid var(--border)}
+.track-label{
+  width:28px;font-size:15px;text-align:center;flex-shrink:0;
+  border-right:1px solid var(--border);
+}
+.track-scroll{
+  flex:1;display:flex;align-items:center;gap:5px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding:0 8px;scroll-behavior:smooth;
+}
+.track-scroll::-webkit-scrollbar{height:2px}
+.track-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.track-cursor{
+  width:2px;height:38px;flex-shrink:0;
+  background:#a855f7;border-radius:2px;
+  animation:blink-cursor 1s ease-in-out infinite;
+}
+.track-cursor.inactive{background:var(--border2);animation:none;opacity:.35}
+@keyframes blink-cursor{0%,100%{opacity:1}50%{opacity:.15}}
+.track-empty-hint{font-size:11px;color:var(--text3);pointer-events:none;white-space:nowrap;flex-shrink:0}
+.chord-block{
+  flex-shrink:0;border-radius:8px;padding:3px 7px;min-width:38px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  border:2px solid transparent;opacity:.82;
+  transition:opacity .15s,transform .1s;-webkit-user-select:none;user-select:none;
+}
+.chord-block.selected{border-color:rgba(255,255,255,.85);opacity:1;transform:scale(1.06)}
+.chord-block:active{transform:scale(.92)}
+.chord-note-nm{font-size:10px;font-weight:800;color:#fff;line-height:1.25;text-align:center}
+.chord-dur-lbl{font-size:8px;color:rgba(255,255,255,.65);font-weight:600}
+
+/* Editor controls bar (2 rows) */
+#editor-controls-bar{
+  display:flex;flex-direction:column;
+  background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;
+}
+#editor-ctrl-row1{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 10px;gap:8px;border-bottom:1px solid var(--border);
+}
+#editor-ctrl-row2{
+  display:flex;align-items:center;
+  padding:4px 10px;gap:6px;overflow-x:auto;
+}
+#hand-toggle{display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border2);flex-shrink:0}
+.hand-tog-btn{
+  padding:4px 10px;border:none;background:var(--bg4);color:var(--text2);
+  font-size:11px;font-weight:700;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap;
+}
+.hand-tog-btn.active{background:rgba(168,85,247,.25);color:#a855f7}
+#beat-ctrl{display:flex;align-items:center;gap:5px;flex-shrink:0}
+#beat-display{font-size:11px;color:var(--text2);font-weight:700;white-space:nowrap;min-width:56px;text-align:center}
+.beat-btn{
+  padding:4px 8px;border-radius:7px;border:1px solid var(--border2);
+  background:var(--bg4);color:var(--text2);font-size:11px;font-weight:700;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s;
+}
+.beat-btn.primary{background:rgba(168,85,247,.2);border-color:#a855f7;color:#a855f7}
+.beat-btn:active{transform:scale(.94)}
+#octave-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
+#octave-label{font-size:10px;color:var(--text2);font-weight:600;white-space:nowrap;min-width:50px;text-align:center}
+.octave-btn{
+  width:26px;height:24px;border-radius:6px;border:1px solid var(--border2);
+  background:var(--bg4);color:#a0c4ff;font-size:13px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.octave-btn:active{background:var(--border2)}
+.ctrl-sep{width:1px;height:18px;background:var(--border2);flex-shrink:0;margin:0 2px}
+#dur-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
+#dur-ctrl-label{font-size:10px;color:var(--text2);flex-shrink:0}
+.dur-pill{
+  padding:3px 7px;border-radius:20px;border:1px solid var(--border2);
+  background:var(--bg4);color:var(--text2);font-size:10px;font-weight:600;
+  cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;
+}
+.dur-pill.active{background:rgba(168,85,247,.2);border-color:#a855f7;color:#a855f7}
+
+/* Editor piano */
+#editor-piano-wrap{flex:1;overflow:hidden;position:relative;background:#111}
+#editor-piano-canvas{display:block}
+
+/* ── Chord / Duration Modal ── */
+#duration-modal{
+  position:fixed;inset:0;z-index:600;
+  display:none;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+}
+#duration-modal.open{display:flex}
+#duration-sheet{
+  width:100%;max-width:500px;
+  background:var(--sheet-bg);border-radius:24px 24px 0 0;
+  border:1px solid var(--border2);border-bottom:none;
+  padding:18px 20px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:10px;
+  animation:slideUp .3s ease;transition:background .4s;
+}
+#duration-sheet h2{font-size:16px;font-weight:800;text-align:center;color:var(--text)}
+#chord-notes-list{display:flex;flex-direction:column;gap:5px;max-height:140px;overflow-y:auto}
+.chord-note-item{
+  display:flex;align-items:center;gap:8px;padding:6px 10px;
+  border-radius:9px;background:var(--bg4);
+}
+.chord-note-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.chord-note-item-name{flex:1;font-size:14px;font-weight:700;color:var(--text)}
+.chord-note-del{
+  width:24px;height:24px;border-radius:6px;border:none;
+  background:var(--bg3);color:var(--text2);font-size:16px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.chord-note-del:active{background:rgba(248,113,113,.2);color:#f87171}
+#duration-grid{display:flex;gap:5px;justify-content:center}
+.dur-opt{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:9px 4px;border-radius:11px;border:1px solid var(--border2);
+  background:var(--bg4);cursor:pointer;flex:1;
+  transition:border-color .15s,background .15s;
+}
+.dur-opt.active{background:rgba(168,85,247,.2);border-color:#a855f7}
+.dur-opt:active{transform:scale(.94)}
+.dur-sym{font-size:18px;line-height:1.3}
+.dur-name{font-size:8px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.3px;text-align:center}
+
+/* ── Creation Edit Modal ── */
+#creation-edit-modal{
+  position:fixed;inset:0;z-index:200;
+  display:none;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
+}
+#creation-edit-modal.open{display:flex}
+#creation-edit-sheet{
+  width:100%;max-width:500px;
+  background:var(--sheet-bg);border-radius:24px 24px 0 0;
+  border:1px solid var(--border2);border-bottom:none;
+  padding:24px 20px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:14px;
+  animation:slideUp .3s ease;transition:background .4s;
+}
+#creation-edit-sheet h2{font-size:18px;font-weight:800;text-align:center;color:var(--text)}
+
+/* ── Create Screen ── */
+#create-screen{flex:1;display:none;flex-direction:column;overflow:hidden}
+#create-header{padding:20px 20px 0;flex-shrink:0}
+#create-header h1{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:2px;color:var(--text)}
+#create-header p{font-size:13px;color:var(--text2)}
+#create-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 20px 120px}
+
+.creation-card{
+  background:var(--card-bg);border:1px solid var(--border2);border-radius:16px;
+  padding:14px 16px;display:flex;align-items:center;gap:12px;
+  margin-bottom:8px;cursor:pointer;
+  transition:border-color .2s,transform .15s,background .4s;
+  -webkit-user-select:none;user-select:none;
+}
+.creation-card:active{transform:scale(.98);border-color:#a855f7}
+.creation-icon{
+  width:46px;height:46px;border-radius:12px;
+  background:linear-gradient(135deg,#1a1035,#2a1a50);
+  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
+}
+.creation-info{flex:1;min-width:0}
+.creation-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.creation-meta{font-size:11px;color:var(--text2);margin-top:1px}
+.creation-edit-btn{
+  width:30px;height:30px;border-radius:8px;border:none;
+  background:var(--bg4);color:var(--text2);font-size:18px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;line-height:1;
+  transition:background .15s,color .15s;
+}
+.creation-edit-btn:active{background:var(--border2);color:#a0c4ff}
+.creation-arrow{font-size:16px;color:#a855f7;flex-shrink:0}
+
+#new-proj-btn{
+  margin-top:12px;padding:14px;border:2px dashed var(--border2);border-radius:14px;
+  text-align:center;cursor:pointer;color:var(--text2);font-size:14px;
+  transition:border-color .2s;-webkit-user-select:none;
+}
+#new-proj-btn:active{border-color:#a855f7}
+#new-proj-btn .plus{font-size:22px;display:block;margin-bottom:2px}
+
+/* ── New Project Modal ── */
+#new-proj-modal{
+  position:fixed;inset:0;z-index:200;
+  display:none;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+}
+#new-proj-modal.open{display:flex}
+#new-proj-sheet{
+  width:100%;max-width:500px;
+  background:var(--sheet-bg);border-radius:24px 24px 0 0;
+  border:1px solid var(--border2);border-bottom:none;
+  padding:24px 20px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:14px;
+  animation:slideUp .3s ease;transition:background .4s;
+}
+#new-proj-sheet h2{font-size:18px;font-weight:800;text-align:center;margin-bottom:2px;color:var(--text)}
+.tempo-stepper{display:flex;align-items:center;gap:10px;justify-content:center}
+.tempo-stepper button{
+  width:38px;height:38px;border-radius:10px;border:1px solid var(--border2);
+  background:var(--bg4);color:var(--text);font-size:22px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .15s;flex-shrink:0;
+}
+.tempo-stepper button:active{background:var(--border2)}
+.tempo-val{font-size:28px;font-weight:900;color:#a855f7;min-width:70px;text-align:center}
+.tempo-bpm-lbl{font-size:11px;color:var(--text2)}
+
+/* ── Editor Screen ── */
+#editor-screen{
+  position:fixed;inset:0;z-index:100;
+  background:var(--bg);display:none;flex-direction:column;overflow:hidden;
+  transition:background .4s;
+}
+#editor-screen.open{display:flex}
+#editor-nav{
   padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));
   display:flex;align-items:center;gap:10px;
   background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;
@@ -909,25 +1167,55 @@ input[type=file]{display:none}
       <div id="editor-title-disp">Ma partition</div>
       <div id="editor-tempo-disp">♩ 120 BPM</div>
     </div>
+    <button id="editor-tuto-btn" onclick="openCreationInPlayer()" title="Voir comme un tuto">🎹</button>
     <button id="editor-play-btn" onclick="toggleEditorPreview()">▶</button>
-    <button id="editor-save-btn" onclick="saveAndCloseEditor()">💾 Sauvegarder</button>
+    <button id="editor-save-btn" onclick="saveAndCloseEditor()">💾 Sauver</button>
   </div>
+  <!-- Two-track timeline -->
   <div id="note-timeline">
-    <div id="timeline-empty">Appuie sur une touche pour ajouter une note</div>
-  </div>
-  <div id="editor-controls-bar">
-    <div id="octave-ctrl">
-      <button class="octave-btn" onclick="shiftOctave(-1)">‹</button>
-      <span id="octave-label">Oct. 3-5</span>
-      <button class="octave-btn" onclick="shiftOctave(1)">›</button>
+    <div class="track-row">
+      <div class="track-label" title="Main droite">🫱</div>
+      <div class="track-scroll" id="track-right-scroll">
+        <div class="track-cursor" id="cursor-right"></div>
+        <div class="track-empty-hint" id="track-right-empty">Appuie sur une touche…</div>
+      </div>
     </div>
-    <div id="dur-ctrl">
-      <span id="dur-ctrl-label">Durée :</span>
-      <button class="dur-pill" data-beats="4" onclick="setDefaultDur(4)">Ronde</button>
-      <button class="dur-pill" data-beats="2" onclick="setDefaultDur(2)">Blanche</button>
-      <button class="dur-pill active" data-beats="1" onclick="setDefaultDur(1)">Noire</button>
-      <button class="dur-pill" data-beats="0.5" onclick="setDefaultDur(0.5)">Croche</button>
-      <button class="dur-pill" data-beats="0.25" onclick="setDefaultDur(0.25)">♬</button>
+    <div class="track-row">
+      <div class="track-label" title="Main gauche">🫲</div>
+      <div class="track-scroll" id="track-left-scroll">
+        <div class="track-cursor" id="cursor-left"></div>
+        <div class="track-empty-hint" id="track-left-empty">Appuie sur une touche…</div>
+      </div>
+    </div>
+  </div>
+  <!-- Controls: hand / beat / octave / duration -->
+  <div id="editor-controls-bar">
+    <div id="editor-ctrl-row1">
+      <div id="hand-toggle">
+        <button class="hand-tog-btn active" id="hand-btn-right" onclick="setEditorHand('right')">🫱 Droite</button>
+        <button class="hand-tog-btn" id="hand-btn-left" onclick="setEditorHand('left')">🫲 Gauche</button>
+      </div>
+      <div id="beat-ctrl">
+        <button class="beat-btn" onclick="undoLastNote()" title="Annuler la dernière note">↩</button>
+        <span id="beat-display">Temps 1</span>
+        <button class="beat-btn primary" onclick="advanceCursor()">Suivant →</button>
+      </div>
+    </div>
+    <div id="editor-ctrl-row2">
+      <div id="octave-ctrl">
+        <button class="octave-btn" onclick="shiftOctave(-1)">‹</button>
+        <span id="octave-label">Oct. 3-5</span>
+        <button class="octave-btn" onclick="shiftOctave(1)">›</button>
+      </div>
+      <div class="ctrl-sep"></div>
+      <div id="dur-ctrl">
+        <span id="dur-ctrl-label">Durée :</span>
+        <button class="dur-pill" data-beats="4" onclick="setDefaultDur(4)">○ Ronde</button>
+        <button class="dur-pill" data-beats="2" onclick="setDefaultDur(2)">◑ Blanche</button>
+        <button class="dur-pill active" data-beats="1" onclick="setDefaultDur(1)">● Noire</button>
+        <button class="dur-pill" data-beats="0.5" onclick="setDefaultDur(0.5)">♪ Croche</button>
+        <button class="dur-pill" data-beats="0.25" onclick="setDefaultDur(0.25)">♬</button>
+      </div>
     </div>
   </div>
   <div id="editor-piano-wrap">
@@ -963,35 +1251,30 @@ input[type=file]{display:none}
   </div>
 </div>
 
-<!-- Duration Picker Modal -->
+<!-- Chord / Duration Modal -->
 <div id="duration-modal">
   <div id="duration-sheet">
-    <h2>Modifier la note</h2>
-    <div id="duration-note-name">—</div>
+    <h2>Modifier l'accord</h2>
+    <div id="chord-notes-list"></div>
     <div id="duration-grid">
       <button class="dur-opt" data-beats="4" onclick="applyDuration(4)">
-        <span class="dur-sym">○</span>
-        <span class="dur-name">Ronde</span>
+        <span class="dur-sym">○</span><span class="dur-name">Ronde</span>
       </button>
       <button class="dur-opt" data-beats="2" onclick="applyDuration(2)">
-        <span class="dur-sym">◑</span>
-        <span class="dur-name">Blanche</span>
+        <span class="dur-sym">◑</span><span class="dur-name">Blanche</span>
       </button>
       <button class="dur-opt" data-beats="1" onclick="applyDuration(1)">
-        <span class="dur-sym">●</span>
-        <span class="dur-name">Noire</span>
+        <span class="dur-sym">●</span><span class="dur-name">Noire</span>
       </button>
       <button class="dur-opt" data-beats="0.5" onclick="applyDuration(0.5)">
-        <span class="dur-sym">♪</span>
-        <span class="dur-name">Croche</span>
+        <span class="dur-sym">♪</span><span class="dur-name">Croche</span>
       </button>
       <button class="dur-opt" data-beats="0.25" onclick="applyDuration(0.25)">
-        <span class="dur-sym">♬</span>
-        <span class="dur-name">D-Croche</span>
+        <span class="dur-sym">♬</span><span class="dur-name">D-Croche</span>
       </button>
     </div>
     <div class="modal-actions">
-      <button class="modal-btn delete" onclick="deleteSelectedNote()">🗑 Supprimer</button>
+      <button class="modal-btn delete" onclick="deleteSelectedChord()">🗑 Supprimer l'accord</button>
       <button class="modal-btn cancel" onclick="closeDurationModal()">Fermer</button>
     </div>
   </div>
@@ -2437,12 +2720,13 @@ initTheme();
 init();
 
 // ═══════════════════════════════════════════════════
-// CREATOR — Partitions utilisateur
+// CREATOR — Partitions utilisateur (deux pistes, accords)
 // ═══════════════════════════════════════════════════
 const CREATIONS_KEY='piano-tuto-creations';
 let creations=[];
 let currentCreation=null;
-let selectedNoteIdx=-1;
+let selectedBeatPos=-1;  // beat sélectionné dans le modal durée
+let selectedBeatHand='right';
 let defaultDurBeats=1;
 let editorLowMidi=48; // C3
 let editorPianoCtx=null;
@@ -2455,6 +2739,8 @@ let editCreationTempo=120;
 let newProjTempo=120;
 let lastPressedMidi=-1;
 let activeTab='library';
+let currentBeat=0;      // position du curseur en temps (beats)
+let editorHand='right'; // main active
 
 const DUR_LABELS={4:'Ronde',2:'Blanche',1:'Noire',0.5:'Croche',0.25:'D-Croche'};
 const NOTE_NAMES_FR_CR=['Do','Do♯','Ré','Ré♯','Mi','Fa','Fa♯','Sol','Sol♯','La','La♯','Si'];
@@ -2468,6 +2754,17 @@ function midiNameFR(midi){
   return NOTE_NAMES_FR_CR[midi%12]+oct;
 }
 function noteColorCR(midi){return NOTE_COLORS_CR[midi%12]}
+
+// Migre l'ancien format séquentiel { midi, beats } vers { midi, beat, beats, hand }
+function migrateCreationNotes(notes){
+  if(!notes||notes.length===0)return[];
+  if(notes[0].beat!==undefined)return notes; // déjà nouveau format
+  let beat=0;
+  return notes.map(n=>{
+    const m={midi:n.midi,beat,beats:n.beats,hand:'right'};
+    beat+=n.beats;return m;
+  });
+}
 
 // ── Storage ──
 function loadCreations(){
@@ -2601,15 +2898,20 @@ function deleteCreation(){
 // ── Editor ──
 function openEditor(creation){
   currentCreation=creation;
-  selectedNoteIdx=-1;defaultDurBeats=1;
+  // Migrer si ancien format
+  currentCreation.notes=migrateCreationNotes(currentCreation.notes);
+  selectedBeatPos=-1;defaultDurBeats=1;
   editorLowMidi=48;lastPressedMidi=-1;editorPreviewPlaying=false;
+  currentBeat=0;editorHand='right';
   updateEditorHeader();
   document.querySelectorAll('.dur-pill').forEach(p=>
     p.classList.toggle('active',parseFloat(p.dataset.beats)===defaultDurBeats));
   document.getElementById('editor-play-btn').textContent='▶';
   document.getElementById('editor-play-btn').classList.remove('playing');
+  setEditorHand('right');
   updateOctaveLabel();
-  renderNoteTimeline();
+  updateBeatDisplay();
+  renderTwoTrackTimeline();
   document.getElementById('editor-screen').classList.add('open');
   setTimeout(()=>{setupEditorPianoCanvas();drawEditorPiano()},50);
 }
@@ -2629,11 +2931,11 @@ function saveAndCloseEditor(){
 function updateEditorHeader(){
   if(!currentCreation)return;
   document.getElementById('editor-title-disp').textContent=currentCreation.title;
-  document.getElementById('editor-tempo-disp').textContent=`♩ ${currentCreation.tempo} BPM`;
+  document.getElementById('editor-tempo-disp').textContent='♩ '+currentCreation.tempo+' BPM';
 }
 function updateOctaveLabel(){
   const oct=Math.floor(editorLowMidi/12)-1;
-  document.getElementById('octave-label').textContent=`Oct. ${oct}-${oct+2}`;
+  document.getElementById('octave-label').textContent='Oct. '+oct+'-'+(oct+2);
 }
 function shiftOctave(dir){
   editorLowMidi=Math.max(21,Math.min(84,editorLowMidi+dir*12));
@@ -2644,53 +2946,148 @@ function setDefaultDur(beats){
   document.querySelectorAll('.dur-pill').forEach(p=>
     p.classList.toggle('active',parseFloat(p.dataset.beats)===defaultDurBeats));
 }
+function setEditorHand(hand){
+  editorHand=hand;
+  document.getElementById('hand-btn-right').classList.toggle('active',hand==='right');
+  document.getElementById('hand-btn-left').classList.toggle('active',hand==='left');
+  // Mettre à jour l'animation des curseurs
+  const cr=document.getElementById('cursor-right');
+  const cl=document.getElementById('cursor-left');
+  if(cr)cr.classList.toggle('inactive',hand!=='right');
+  if(cl)cl.classList.toggle('inactive',hand!=='left');
+}
+function updateBeatDisplay(){
+  const b=currentBeat+1;
+  document.getElementById('beat-display').textContent='Temps '+(Number.isInteger(b)?b:b.toFixed(2));
+}
+function advanceCursor(){
+  currentBeat+=defaultDurBeats;
+  updateBeatDisplay();
+  renderTwoTrackTimeline();
+}
+function undoLastNote(){
+  if(!currentCreation||currentCreation.notes.length===0)return;
+  currentCreation.notes.pop();
+  renderTwoTrackTimeline();
+}
 
-// ── Note Timeline ──
-function renderNoteTimeline(){
-  const tl=document.getElementById('note-timeline');
-  const emptyEl=document.getElementById('timeline-empty');
-  tl.querySelectorAll('.seq-note').forEach(el=>el.remove());
-  if(!currentCreation||currentCreation.notes.length===0){emptyEl.style.display='';return}
-  emptyEl.style.display='none';
-  currentCreation.notes.forEach((n,i)=>{
-    const el=document.createElement('div');
-    el.className='seq-note'+(i===selectedNoteIdx?' selected':'');
-    el.style.background=noteColorCR(n.midi);
-    el.style.minWidth=Math.max(44,40*n.beats)+'px';
-    el.innerHTML=`<span class="seq-note-name">${midiNameFR(n.midi)}</span><span class="seq-note-dur">${DUR_LABELS[n.beats]||n.beats}</span>`;
-    el.addEventListener('click',()=>selectNoteAtIndex(i));
-    tl.appendChild(el);
+// ── Two-track Timeline ──
+function renderTwoTrackTimeline(){
+  renderTrack('right');
+  renderTrack('left');
+}
+function renderTrack(hand){
+  const scroll=document.getElementById('track-'+hand+'-scroll');
+  const emptyEl=document.getElementById('track-'+hand+'-empty');
+  const cursor=document.getElementById('cursor-'+hand);
+  if(!scroll)return;
+  scroll.querySelectorAll('.chord-block').forEach(el=>el.remove());
+  const handNotes=currentCreation?currentCreation.notes.filter(n=>n.hand===hand):[];
+  if(handNotes.length===0){
+    emptyEl.style.display='';
+  }else{
+    emptyEl.style.display='none';
+    // Grouper par beat
+    const groups={};
+    handNotes.forEach(n=>{
+      const k=n.beat;
+      if(!groups[k])groups[k]=[];
+      groups[k].push(n);
+    });
+    // Trier et afficher
+    Object.keys(groups).map(Number).sort((a,b)=>a-b).forEach(beat=>{
+      const block=makeChordBlock(groups[beat],beat,hand);
+      scroll.insertBefore(block,cursor);
+    });
+  }
+  // Animation curseur
+  cursor.classList.toggle('inactive',editorHand!==hand);
+  scroll.scrollLeft=scroll.scrollWidth;
+}
+function makeChordBlock(notes,beat,hand){
+  const lowestMidi=Math.min(...notes.map(n=>n.midi));
+  const color=noteColorCR(lowestMidi);
+  const block=document.createElement('div');
+  block.className='chord-block'+(selectedBeatPos===beat&&selectedBeatHand===hand?' selected':'');
+  block.style.background=color;
+  block.dataset.beat=beat;block.dataset.hand=hand;
+  const names=notes.map(n=>midiNameFR(n.midi)).join('\n');
+  const dur=DUR_LABELS[notes[0].beats]||notes[0].beats;
+  block.innerHTML='<span class="chord-note-nm">'+names.replace('\n','<br>')+'</span><span class="chord-dur-lbl">'+dur+'</span>';
+  block.addEventListener('click',()=>openChordModal(beat,hand));
+  return block;
+}
+
+// ── Chord/Duration Modal ──
+function openChordModal(beat,hand){
+  selectedBeatPos=beat;selectedBeatHand=hand;
+  const chordNotes=currentCreation.notes.filter(n=>n.beat===beat&&n.hand===hand);
+  if(!chordNotes.length)return;
+  // Liste des notes de l'accord
+  const listEl=document.getElementById('chord-notes-list');
+  listEl.innerHTML='';
+  chordNotes.forEach(n=>{
+    const item=document.createElement('div');
+    item.className='chord-note-item';
+    item.innerHTML='<div class="chord-note-dot" style="background:'+noteColorCR(n.midi)+'"></div>'+
+      '<span class="chord-note-item-name">'+midiNameFR(n.midi)+'</span>'+
+      '<button class="chord-note-del" data-midi="'+n.midi+'">×</button>';
+    item.querySelector('.chord-note-del').addEventListener('click',()=>deleteNoteFromChord(n.midi));
+    listEl.appendChild(item);
   });
-  tl.scrollLeft=tl.scrollWidth;
-}
-function selectNoteAtIndex(i){
-  selectedNoteIdx=i;renderNoteTimeline();openDurationModal(i);
-}
-
-// ── Duration Modal ──
-function openDurationModal(idx){
-  const note=currentCreation.notes[idx];if(!note)return;
-  const nameEl=document.getElementById('duration-note-name');
-  nameEl.textContent=midiNameFR(note.midi);nameEl.style.color=noteColorCR(note.midi);
+  // Durée active
   document.querySelectorAll('.dur-opt').forEach(btn=>
-    btn.classList.toggle('active',parseFloat(btn.dataset.beats)===note.beats));
+    btn.classList.toggle('active',parseFloat(btn.dataset.beats)===chordNotes[0].beats));
   document.getElementById('duration-modal').classList.add('open');
+  renderTwoTrackTimeline(); // highlight selected
 }
 function closeDurationModal(){
   document.getElementById('duration-modal').classList.remove('open');
-  selectedNoteIdx=-1;renderNoteTimeline();
+  selectedBeatPos=-1;renderTwoTrackTimeline();
 }
 function applyDuration(beats){
-  if(selectedNoteIdx<0||!currentCreation)return;
-  currentCreation.notes[selectedNoteIdx].beats=parseFloat(beats);
+  if(selectedBeatPos<0||!currentCreation)return;
+  currentCreation.notes.forEach(n=>{
+    if(n.beat===selectedBeatPos&&n.hand===selectedBeatHand)n.beats=parseFloat(beats);
+  });
   document.querySelectorAll('.dur-opt').forEach(btn=>
     btn.classList.toggle('active',parseFloat(btn.dataset.beats)===parseFloat(beats)));
-  renderNoteTimeline();
+  renderTwoTrackTimeline();
 }
-function deleteSelectedNote(){
-  if(selectedNoteIdx<0||!currentCreation)return;
-  currentCreation.notes.splice(selectedNoteIdx,1);
-  selectedNoteIdx=-1;closeDurationModal();
+function deleteNoteFromChord(midi){
+  currentCreation.notes=currentCreation.notes.filter(
+    n=>!(n.beat===selectedBeatPos&&n.hand===selectedBeatHand&&n.midi===midi));
+  const remaining=currentCreation.notes.filter(n=>n.beat===selectedBeatPos&&n.hand===selectedBeatHand);
+  if(remaining.length===0){closeDurationModal()}
+  else{openChordModal(selectedBeatPos,selectedBeatHand)}
+  renderTwoTrackTimeline();
+}
+function deleteSelectedChord(){
+  currentCreation.notes=currentCreation.notes.filter(
+    n=>!(n.beat===selectedBeatPos&&n.hand===selectedBeatHand));
+  closeDurationModal();
+}
+
+// ── Ouvrir dans le lecteur (mode tuto) ──
+function openCreationInPlayer(){
+  if(!currentCreation||currentCreation.notes.length===0)return;
+  // Sauvegarder
+  const idx=creations.findIndex(c=>c.id===currentCreation.id);
+  if(idx>=0){creations[idx]={...currentCreation};persistCreations()}
+  // Convertir vers le format du lecteur
+  const bps=currentCreation.tempo/60;
+  const playerNotes=currentCreation.notes.map(n=>({
+    midi:n.midi,
+    start:n.beat/bps,
+    dur:Math.max(0.05,n.beats/bps),
+    hand:n.hand
+  }));
+  playerNotes.sort((a,b)=>a.start-b.start);
+  notes=playerNotes;
+  totalDuration=playerNotes.length>0?Math.max(...playerNotes.map(n=>n.start+n.dur)):0;
+  currentSong={title:currentCreation.title,composer:'🎵 Ma création',id:currentCreation.id};
+  closeEditor();
+  showPlayer();
 }
 
 // ── Editor Piano Canvas ──
@@ -2725,19 +3122,17 @@ function drawEditorPiano(){
   if(!editorPianoCtx)return;
   const{layout,w,h,ww}=getEditorLayout();
   const lo=editorLowMidi,hi=lo+35,bh=h*.63;
-  // Background
   const bg=editorPianoCtx.createLinearGradient(0,0,0,h);
   bg.addColorStop(0,'#2a2a2a');bg.addColorStop(1,'#111');
   editorPianoCtx.fillStyle=bg;editorPianoCtx.fillRect(0,0,w,h);
-  // White keys
+  // Touches blanches
   for(let m=lo;m<=hi;m++){
     const k=layout[m];if(!k||k.black)continue;
     const active=(m===lastPressedMidi);
     const x=k.x,kw=k.w-1;
     if(active){
       const g=editorPianoCtx.createLinearGradient(x,0,x+kw,0);
-      g.addColorStop(0,'#6ab8ff');g.addColorStop(1,'#3a8fe0');
-      editorPianoCtx.fillStyle=g;
+      g.addColorStop(0,'#6ab8ff');g.addColorStop(1,'#3a8fe0');editorPianoCtx.fillStyle=g;
     }else{
       const g=editorPianoCtx.createLinearGradient(x,0,x,h);
       g.addColorStop(0,'#fafaf8');g.addColorStop(.7,'#f0ede6');g.addColorStop(1,'#ddd9d0');
@@ -2749,20 +3144,19 @@ function drawEditorPiano(){
     if(m%12===0){
       const oct=Math.floor(m/12)-1;
       editorPianoCtx.fillStyle=active?'#fff':'#999';
-      editorPianoCtx.font=`bold ${Math.max(9,Math.min(13,ww*.4))}px -apple-system,sans-serif`;
+      editorPianoCtx.font='bold '+Math.max(9,Math.min(13,ww*.4))+'px -apple-system,sans-serif';
       editorPianoCtx.textAlign='center';
       editorPianoCtx.fillText('C'+oct,x+kw/2,h-8);
     }
   }
-  // Black keys
+  // Touches noires
   for(let m=lo;m<=hi;m++){
     const k=layout[m];if(!k||!k.black)continue;
     const active=(m===lastPressedMidi);
     const x=k.x,kw=k.w;
     if(active){
       const g=editorPianoCtx.createLinearGradient(x,0,x+kw,0);
-      g.addColorStop(0,'#2a6fb8');g.addColorStop(1,'#1a4f8a');
-      editorPianoCtx.fillStyle=g;
+      g.addColorStop(0,'#2a6fb8');g.addColorStop(1,'#1a4f8a');editorPianoCtx.fillStyle=g;
     }else{
       const g=editorPianoCtx.createLinearGradient(x,0,x,bh);
       g.addColorStop(0,'#0e0e0e');g.addColorStop(.5,'#050505');g.addColorStop(1,'#000');
@@ -2776,7 +3170,6 @@ function drawEditorPiano(){
     editorPianoCtx.strokeStyle='rgba(0,0,0,.8)';editorPianoCtx.lineWidth=1;
     editorPianoCtx.beginPath();editorPianoCtx.roundRect(x,0,kw,bh,[0,0,4,4]);editorPianoCtx.stroke();
   }
-  // Purple top bar (marque l'octave courante)
   editorPianoCtx.fillStyle='rgba(168,85,247,.5)';editorPianoCtx.fillRect(0,0,w,2);
 }
 
@@ -2805,10 +3198,12 @@ function onEditorPianoInteract(e){
 
 async function addNoteToCreation(midi){
   if(!currentCreation)return;
+  // Éviter les doublons dans le même accord
+  const exists=currentCreation.notes.some(n=>n.beat===currentBeat&&n.hand===editorHand&&n.midi===midi);
+  if(exists)return;
   lastPressedMidi=midi;
-  currentCreation.notes.push({midi,beats:defaultDurBeats});
-  selectedNoteIdx=-1;
-  renderNoteTimeline();
+  currentCreation.notes.push({midi,beat:currentBeat,beats:defaultDurBeats,hand:editorHand});
+  renderTwoTrackTimeline();
   drawEditorPiano();
   setTimeout(()=>{if(lastPressedMidi===midi){lastPressedMidi=-1;drawEditorPiano()}},200);
   try{
@@ -2829,12 +3224,13 @@ async function toggleEditorPreview(){
   document.getElementById('editor-play-btn').textContent='⏹';
   document.getElementById('editor-play-btn').classList.add('playing');
   const bps=currentCreation.tempo/60;
-  let t=audioCtx.currentTime+0.1;
+  const now=audioCtx.currentTime+0.1;
   currentCreation.notes.forEach(n=>{
-    const dur=n.beats/bps;playSample(n.midi,t,dur);t+=dur;
+    playSample(n.midi,now+n.beat/bps,Math.max(0.05,n.beats/bps));
   });
-  const totalSec=currentCreation.notes.reduce((s,n)=>s+n.beats/bps,0);
-  editorPreviewStop=setTimeout(()=>{if(editorPreviewPlaying)stopEditorPreview()},(totalSec+0.5)*1000);
+  const maxBeat=currentCreation.notes.length>0
+    ?Math.max(...currentCreation.notes.map(n=>n.beat+n.beats)):0;
+  editorPreviewStop=setTimeout(()=>{if(editorPreviewPlaying)stopEditorPreview()},(maxBeat/bps+0.6)*1000);
 }
 function stopEditorPreview(){
   editorPreviewPlaying=false;
@@ -2843,14 +3239,12 @@ function stopEditorPreview(){
   if(btn){btn.textContent='▶';btn.classList.remove('playing')}
 }
 
-// Resize du clavier éditeur lors d'un redimensionnement
 window.addEventListener('resize',()=>{
   if(document.getElementById('editor-screen').classList.contains('open')){
     setupEditorPianoCanvas();drawEditorPiano();
   }
 });
 
-// Event listeners du clavier éditeur
 document.getElementById('editor-piano-canvas').addEventListener('touchstart',onEditorPianoInteract,{passive:false});
 document.getElementById('editor-piano-canvas').addEventListener('click',onEditorPianoInteract);
 </script>
