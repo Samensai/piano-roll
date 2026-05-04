@@ -1418,9 +1418,16 @@ function autoHandSplit(notes){
 
   // Étape 3 : piste+canal uniques → chercher le gap naturel dans la distribution
   const pitches=[...new Set(notes.map(n=>n.midi))].sort((a,b)=>a-b);
-  let splitPoint=60;
+  const applyThreshold=sp=>{
+    notes.forEach(n=>{n.hand=n.midi>=sp?'right':'left'});
+  };
+  const isBalanced=()=>{
+    const r=notes.filter(n=>n.hand==='right').length;
+    const ratio=r/notes.length;
+    return ratio>=0.1&&ratio<=0.9; // au moins 10 % de chaque côté
+  };
   if(pitches.length>=2){
-    let bestScore=-1;
+    let bestScore=-1,splitPoint=60;
     for(let i=0;i<pitches.length-1;i++){
       const gap=pitches[i+1]-pitches[i];
       const mid=(pitches[i]+pitches[i+1])/2;
@@ -1429,8 +1436,13 @@ function autoHandSplit(notes){
       const score=gap*(0.4+centerBias);
       if(score>bestScore){bestScore=score;splitPoint=mid}
     }
+    applyThreshold(splitPoint);
   }
-  notes.forEach(n=>{n.hand=n.midi>=splitPoint?'right':'left'});
+  // Fallback : médiane si le gap a tout mis d'un côté
+  if(!isBalanced()){
+    const med=[...notes].map(n=>n.midi).sort((a,b)=>a-b)[Math.floor(notes.length/2)];
+    applyThreshold(med);
+  }
   resolveHandCrossings(notes);
 }
 
